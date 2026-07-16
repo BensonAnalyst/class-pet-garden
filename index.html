@@ -1,0 +1,1315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Class Pet Garden</title>
+<style>
+  :root {
+    --navy: #1F3864;
+    --teal: #0F6B72;
+    --bg: #F4F6FA;
+    --card: #FFFFFF;
+    --good: #2E9E5B;
+    --bad: #D14343;
+    --muted: #6B7280;
+    --border: #E3E7EF;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: #1a1a1a;
+  }
+  header {
+    background: var(--navy);
+    color: white;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 {
+    font-size: 18px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  header .actions button {
+    background: rgba(255,255,255,0.15);
+    border: none;
+    color: white;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+    margin-left: 6px;
+    cursor: pointer;
+  }
+  header .actions button:hover { background: rgba(255,255,255,0.28); }
+
+  main { max-width: 720px; margin: 0 auto; padding: 14px 12px 90px; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px;
+    margin-bottom: 14px;
+  }
+  .card h2 { margin: 0 0 10px; font-size: 16px; color: var(--navy); }
+  .muted { color: var(--muted); font-size: 13px; }
+
+  label { display: block; font-size: 13px; margin: 10px 0 4px; color: #333; font-weight: 600; }
+  input[type=text], input[type=number], select {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+  }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; }
+
+  button.primary {
+    background: var(--teal);
+    color: white;
+    border: none;
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 12px;
+  }
+  button.primary:hover { opacity: 0.92; }
+  button.secondary {
+    background: white;
+    color: var(--navy);
+    border: 1px solid var(--navy);
+    padding: 10px 14px;
+    border-radius: 10px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button.link {
+    background: none;
+    border: none;
+    color: var(--teal);
+    text-decoration: underline;
+    cursor: pointer;
+    font-size: 13px;
+    padding: 4px;
+  }
+
+  .chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .chip {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .chip button { background: none; border: none; color: var(--bad); cursor: pointer; font-size: 13px; }
+
+  .student-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 12px;
+  }
+  .student-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px;
+    text-align: center;
+    cursor: pointer;
+    position: relative;
+  }
+  .student-card .pet-emoji { font-size: 40px; line-height: 1; }
+  .student-card .name { font-weight: 600; font-size: 14px; margin-top: 6px; }
+  .student-card .level { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .student-card .points { font-size: 12px; margin-top: 4px; font-weight: 700; }
+  .student-card.sick { border-color: var(--bad); }
+  .student-card .sick-badge {
+    position: absolute; top: 6px; right: 8px; font-size: 11px; color: var(--bad); font-weight: 700;
+  }
+
+  .quick-actions {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; justify-content: center;
+  }
+  .quick-actions button {
+    border: none; border-radius: 8px; padding: 8px 10px; font-size: 12px; cursor: pointer; color: white;
+  }
+  .quick-actions button.pos { background: var(--good); }
+  .quick-actions button.neg { background: var(--bad); }
+
+  .detail-history {
+    max-height: 180px; overflow-y: auto; margin-top: 10px; font-size: 12px; border-top: 1px solid var(--border); padding-top: 8px;
+  }
+  .detail-history .entry { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed var(--border); }
+  .detail-history .entry.pos { color: var(--good); }
+  .detail-history .entry.neg { color: var(--bad); }
+
+  .tabbar {
+    position: fixed; bottom: 0; left: 0; right: 0; background: white; border-top: 1px solid var(--border);
+    display: flex; z-index: 10;
+  }
+  .tabbar button {
+    flex: 1; border: none; background: none; padding: 12px 4px; font-size: 12px; color: var(--muted); cursor: pointer;
+  }
+  .tabbar button.active { color: var(--teal); font-weight: 700; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); align-items: flex-end; justify-content: center; z-index: 20;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: white; border-radius: 16px 16px 0 0; padding: 18px; width: 100%; max-width: 720px; max-height: 85vh; overflow-y: auto;
+  }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .modal-header h3 { margin: 0; font-size: 16px; color: var(--navy); }
+  .close-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--muted); }
+
+  .empty-state { text-align: center; padding: 40px 10px; color: var(--muted); }
+  .empty-state .big { font-size: 44px; margin-bottom: 8px; }
+
+  .species-picker { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .species-picker .opt {
+    font-size: 26px; padding: 8px; border-radius: 10px; border: 2px solid transparent; cursor: pointer; background: var(--bg);
+  }
+  .species-picker .opt.selected { border-color: var(--teal); }
+
+  .banner {
+    background: #FFF7E6; border: 1px solid #F2CB6C; color: #8A6116; padding: 10px 12px; border-radius: 10px; font-size: 12.5px; margin-bottom: 14px;
+  }
+
+  /* Leaderboard */
+  .lb-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 6px; border-bottom: 1px solid var(--border);
+  }
+  .lb-row:last-child { border-bottom: none; }
+  .lb-rank { width: 28px; text-align: center; font-weight: 700; color: var(--muted); font-size: 14px; }
+  .lb-rank.medal { font-size: 18px; }
+  .lb-emoji { font-size: 26px; width: 34px; text-align: center; }
+  .lb-info { flex: 1; }
+  .lb-name { font-weight: 600; font-size: 14px; }
+  .lb-level { font-size: 11px; color: var(--muted); }
+  .lb-points { font-weight: 700; font-size: 14px; min-width: 54px; text-align: right; }
+  .lb-trend { font-size: 13px; min-width: 20px; text-align: center; }
+  .lb-trend.up { color: var(--good); }
+  .lb-trend.down { color: var(--bad); }
+  .lb-trend.flat { color: var(--muted); }
+
+  /* Battle */
+  .battle-bar-wrap { margin: 14px 0; }
+  .battle-label { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+  .battle-track { background: var(--bg); border-radius: 999px; height: 22px; overflow: hidden; display: flex; }
+  .battle-fill { height: 100%; border-radius: 999px 0 0 999px; transition: width 0.4s; }
+  .battle-fill.mine { background: var(--teal); }
+  .battle-fill.rival { background: #B0B7C3; }
+  .battle-verdict { text-align: center; font-weight: 700; margin-top: 10px; font-size: 15px; color: var(--navy); }
+
+  /* Certificate modal */
+  .certificate {
+    border: 3px dashed var(--teal); border-radius: 14px; padding: 22px; text-align: center; background: #FBFDFC;
+  }
+  .certificate .cert-emoji { font-size: 54px; }
+  .certificate .cert-title { font-size: 12px; letter-spacing: 1.5px; color: var(--muted); text-transform: uppercase; margin-top: 6px; }
+  .certificate .cert-name { font-size: 22px; font-weight: 700; color: var(--navy); margin: 8px 0 2px; }
+  .certificate .cert-sub { font-size: 13px; color: var(--muted); }
+
+  /* Celebration toast */
+  #celebrationToast {
+    position: fixed; top: 16px; left: 50%; transform: translateX(-50%) translateY(-30px);
+    background: var(--navy); color: white; padding: 12px 20px; border-radius: 12px; font-size: 14px; font-weight: 600;
+    z-index: 40; opacity: 0; transition: all 0.35s ease; pointer-events: none; text-align: center; box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+  }
+  #celebrationToast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Hall of Fame */
+  .hof-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .hof-row:last-child { border-bottom: none; }
+  .hof-emoji { font-size: 22px; }
+  .hof-info { flex: 1; }
+  .hof-name { font-weight: 600; }
+  .hof-date { color: var(--muted); font-size: 11px; }
+
+  /* Projector mode */
+  #projectorOverlay {
+    display: none; position: fixed; inset: 0; background: linear-gradient(160deg, #10233F, #0F6B72);
+    z-index: 50; color: white; flex-direction: column; align-items: center; padding: 30px 20px; overflow-y: auto;
+  }
+  #projectorOverlay.active { display: flex; }
+  .proj-title { font-size: clamp(28px, 5vw, 48px); font-weight: 800; margin-bottom: 6px; text-align: center; }
+  .proj-sub { font-size: clamp(14px, 2vw, 18px); opacity: 0.8; margin-bottom: 24px; }
+  .proj-board { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 10px; }
+  .proj-row {
+    display: flex; align-items: center; gap: 18px; background: rgba(255,255,255,0.08); border-radius: 16px; padding: 14px 22px;
+  }
+  .proj-rank { font-size: clamp(20px, 3vw, 30px); font-weight: 800; width: 50px; text-align: center; }
+  .proj-emoji { font-size: clamp(32px, 5vw, 52px); }
+  .proj-name { flex: 1; font-size: clamp(18px, 3vw, 28px); font-weight: 700; }
+  .proj-level { font-size: clamp(12px, 1.6vw, 16px); opacity: 0.75; }
+  .proj-points { font-size: clamp(18px, 3vw, 28px); font-weight: 800; }
+  .proj-controls { margin-top: 26px; display: flex; gap: 10px; }
+  .proj-controls button {
+    background: rgba(255,255,255,0.15); color: white; border: none; padding: 10px 18px; border-radius: 10px; font-size: 14px; cursor: pointer;
+  }
+  .proj-controls button:hover { background: rgba(255,255,255,0.28); }
+
+  .lb-mode-btn.active, .lb-period-btn.active {
+    background: var(--teal); color: white; border-color: var(--teal);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🐾 Class Pet Garden</h1>
+  <div class="actions">
+    <button id="projectorBtn">📽 Project</button>
+    <button id="settingsBtn">⚙ Settings</button>
+  </div>
+</header>
+
+<main>
+
+  <!-- SETUP SCREEN -->
+  <div class="screen" id="screen-setup">
+    <div class="card">
+      <h2>Set up your class</h2>
+      <p class="muted">Everything is saved on this device only — no account, no internet needed after loading.</p>
+      <label>Class name</label>
+      <input type="text" id="className" placeholder="e.g. Primary 3A">
+      <button class="primary" id="createClassBtn">Create class</button>
+    </div>
+  </div>
+
+  <!-- DASHBOARD SCREEN -->
+  <div class="screen" id="screen-dashboard">
+    <div class="card" style="margin-bottom:10px;">
+      <div class="row" style="align-items:center;">
+        <div><strong id="dashClassName"></strong><div class="muted" id="dashCount"></div></div>
+        <div style="text-align:right;">
+          <button class="secondary" id="importRosterBtn">📥 Import</button>
+          <button class="secondary" id="addStudentBtn">+ Add Student</button>
+        </div>
+      </div>
+    </div>
+    <div id="studentGridWrap"></div>
+  </div>
+
+  <!-- LEADERBOARD / BATTLE SCREEN -->
+  <div class="screen" id="screen-leaderboard">
+    <div class="card">
+      <h2>🏆 Class Leaderboard</h2>
+      <p class="muted">Ranked by points. Arrow shows momentum from the last 3 logged actions. Switching the time filter never deletes data — it's just a different view of the same history.</p>
+      <div class="row" style="gap:6px;">
+        <button class="secondary lb-mode-btn active" data-mode="individual" style="flex:1;">👤 Individual</button>
+        <button class="secondary lb-mode-btn" data-mode="group" style="flex:1;">👥 Group PK</button>
+      </div>
+      <div class="row" style="gap:6px; margin-top:6px;">
+        <button class="secondary lb-period-btn active" data-period="all" style="flex:1;">All-time</button>
+        <button class="secondary lb-period-btn" data-period="week" style="flex:1;">This Week</button>
+        <button class="secondary lb-period-btn" data-period="month" style="flex:1;">This Month</button>
+      </div>
+      <div id="leaderboardList" style="margin-top:10px;"></div>
+      <div id="groupPkList" style="display:none; margin-top:10px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>⚔ Class vs. Class Battle</h2>
+      <p class="muted">Enter a rival class's average score (e.g. shared by another teacher) to compare — great for a screenshot to share.</p>
+      <label>Rival class name</label>
+      <input type="text" id="rivalName" placeholder="e.g. Primary 3B">
+      <label>Rival class average points</label>
+      <input type="number" id="rivalAvg" placeholder="e.g. 18">
+      <button class="primary" id="saveBattleBtn">Update battle</button>
+      <div id="battleResult"></div>
+    </div>
+
+    <div class="card">
+      <h2>🏅 Hall of Fame</h2>
+      <p class="muted">Crown this week's top student, then start a fresh week — past champions stay on record even after points reset.</p>
+      <div id="hallOfFameList"></div>
+      <button class="primary" id="crownChampionBtn">Crown weekly champion &amp; start new week</button>
+    </div>
+  </div>
+
+  <!-- SETTINGS SCREEN -->
+  <div class="screen" id="screen-settings">
+    <div class="card">
+      <h2>👥 Groups</h2>
+      <p class="muted">Create groups (e.g. table teams), then assign each student to one from their profile — needed for Group PK ranking.</p>
+      <div id="groupList" class="chip-list"></div>
+      <div class="row" style="margin-top:12px;">
+        <input type="text" id="newGroupName" placeholder="e.g. Team Falcon">
+      </div>
+      <button class="primary" id="addGroupBtn">Add group</button>
+    </div>
+
+    <div class="card">
+      <h2>Point categories</h2>
+      <p class="muted">Add the behaviors you want to track and how many points they're worth. Positive for good behavior, negative for penalties.</p>
+      <div id="categoryList" class="chip-list"></div>
+      <div class="row" style="margin-top:12px;">
+        <input type="text" id="newCatName" placeholder="e.g. Homework done">
+        <input type="number" id="newCatPoints" placeholder="pts" style="max-width:80px;">
+      </div>
+      <button class="primary" id="addCatBtn">Add category</button>
+    </div>
+
+    <div class="card">
+      <h2>Pet level thresholds</h2>
+      <p class="muted">Points needed to reach each stage. Below 0 the pet becomes "Unwell"; below the critical line, "Critical".</p>
+      <div id="thresholdInputs"></div>
+      <label>Critical threshold (points at/below this = Critical)</label>
+      <input type="number" id="criticalThresholdInput" style="max-width:120px;">
+      <button class="primary" id="saveThresholdsBtn">Save thresholds</button>
+    </div>
+
+    <div class="card">
+      <h2>Data</h2>
+      <button class="secondary" id="exportBtn">Export CSV (for reporting)</button>
+      <button class="secondary" id="resetBtn" style="margin-left:8px; border-color:var(--bad); color:var(--bad);">Reset class data</button>
+    </div>
+  </div>
+
+</main>
+
+<div class="tabbar" id="tabbar" style="display:none;">
+  <button data-screen="dashboard" class="tabbtn active">🐣 Class</button>
+  <button data-screen="leaderboard" class="tabbtn">🏆 Rankings</button>
+  <button data-screen="settings" class="tabbtn">⚙ Settings</button>
+</div>
+
+<div id="celebrationToast"></div>
+
+<!-- PROJECTOR / BIG SCREEN MODE -->
+<div id="projectorOverlay">
+  <div class="proj-title" id="projClassName"></div>
+  <div class="proj-sub">Class Pet Leaderboard</div>
+  <div class="proj-board" id="projBoard"></div>
+  <div class="proj-controls">
+    <button id="projRefreshBtn">🔄 Refresh</button>
+    <button id="projExitBtn">✕ Exit (Esc)</button>
+  </div>
+</div>
+
+<!-- IMPORT ROSTER MODAL -->
+<div class="modal-overlay" id="importModal">
+  <div class="modal">
+    <div class="modal-header"><h3>Import roster</h3><button class="close-btn" data-close="importModal">&times;</button></div>
+    <p class="muted">Upload an Excel (.xlsx) or CSV file with a "Name" column (and an optional "Group" column) to add many students at once instead of typing them one by one.</p>
+    <button class="secondary" id="downloadTemplateBtn" style="width:100%;">⬇ Download CSV template</button>
+    <label style="margin-top:14px;">Choose file</label>
+    <input type="file" id="importFile" accept=".csv,.xlsx,.xls">
+    <div id="importPreview" style="margin-top:10px; max-height:240px; overflow-y:auto;"></div>
+    <button class="primary" id="confirmImportBtn" disabled>Import students</button>
+  </div>
+</div>
+
+<!-- ADD STUDENT MODAL -->
+<div class="modal-overlay" id="addStudentModal">
+  <div class="modal">
+    <div class="modal-header"><h3>Add student</h3><button class="close-btn" data-close="addStudentModal">&times;</button></div>
+    <label>Student name</label>
+    <input type="text" id="newStudentName" placeholder="e.g. Aisyah">
+    <label>Pick a pet</label>
+    <div class="species-picker" id="speciesPicker"></div>
+    <button class="primary" id="confirmAddStudentBtn">Add to class</button>
+  </div>
+</div>
+
+<!-- ADOPTION CERTIFICATE MODAL -->
+<div class="modal-overlay" id="certModal">
+  <div class="modal">
+    <div class="modal-header"><h3>Adoption Ceremony 🎉</h3><button class="close-btn" data-close="certModal">&times;</button></div>
+    <p class="muted">Read this out loud in class — the moment of "officially" receiving the pet is what makes it stick.</p>
+    <div class="certificate">
+      <div class="cert-emoji" id="certEmoji"></div>
+      <div class="cert-title">Certificate of Adoption</div>
+      <div class="cert-name" id="certName"></div>
+      <div class="cert-sub" id="certDate"></div>
+    </div>
+    <button class="primary" id="certDoneBtn">Present to class &amp; continue</button>
+  </div>
+</div>
+
+<!-- STUDENT DETAIL MODAL -->
+<div class="modal-overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-header"><h3 id="detailName">Student</h3><button class="close-btn" data-close="detailModal">&times;</button></div>
+    <div style="text-align:center;">
+      <div id="detailEmoji" style="font-size:60px;"></div>
+      <div id="detailLevel" class="muted"></div>
+      <div id="detailPoints" style="font-weight:700; font-size:18px; margin-top:4px;"></div>
+    </div>
+    <label style="margin-top:14px;">Group</label>
+    <select id="detailGroupSelect"></select>
+    <div class="quick-actions" id="quickActions"></div>
+    <div class="detail-history" id="detailHistory"></div>
+    <button class="secondary" id="shareUpdateBtn" style="width:100%; margin-top:10px;">📤 Share update with parent</button>
+    <button class="link" id="removeStudentBtn" style="color:var(--bad); margin-top:10px;">Remove this student from class</button>
+  </div>
+</div>
+
+<!-- Optional: enables reading real .xlsx/.xls files. Only needed the first time it loads (browser caches it after);
+     if there's no internet, the import flow falls back to asking for a CSV file instead, which needs no library at all. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+
+<script>
+(function() {
+  const STORAGE_KEY = 'classPetGarden_v1';
+  const SPECIES = ['🐱','🐶','🐰','🐼','🐲','🦊','🐨','🐸','🐷','🐹','🐯','🐘','🦄','🐢','🦉','🐧'];
+  const DEFAULT_CATEGORIES = [
+    { name: 'Hand raised / participated', points: 2 },
+    { name: 'Homework done', points: 3 },
+    { name: 'Helped a classmate', points: 3 },
+    { name: 'Late to class', points: -2 },
+    { name: 'Disruptive behavior', points: -5 },
+  ];
+  // 11-stage progression matching banchong.cn's own level-rules table (Lv.1-10 cumulative energy: 3,6,10,20,35,50,70,90,120,160)
+  const DEFAULT_THRESHOLDS = [0, 3, 6, 10, 20, 35, 50, 70, 90, 120, 160];
+  const DEFAULT_CRITICAL = -15; // at/below this, pet is "Critical" instead of just "Unwell"
+  const STAGE_EMOJIS = ['🥚','🐣','🌱','🍃','🧭','🔭','🏅','🦸','🎖️','🌟','👑'];
+  const STAGE_LABELS = ['Egg', 'Lv.1 Hatchling', 'Lv.2 Sprout', 'Lv.3 Nibbler', 'Lv.4 Adventurer', 'Lv.5 Explorer', 'Lv.6 Champion', 'Lv.7 Hero', 'Lv.8 Master', 'Lv.9 Legend', 'Lv.10 Star King'];
+
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch (e) {}
+    return null;
+  }
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  let state = loadState() || {
+    className: '',
+    categories: DEFAULT_CATEGORIES.slice(),
+    thresholds: DEFAULT_THRESHOLDS.slice(),
+    criticalThreshold: DEFAULT_CRITICAL,
+    students: [], // {id, name, species, points, history:[{ts, label, delta}]}
+    setupDone: false,
+    battle: { rivalName: '', rivalAvg: null },
+    hallOfFame: [],
+    groups: [], // {id, name}
+  };
+  // migrate older saved state that predates these fields
+  if (state.criticalThreshold === undefined) state.criticalThreshold = DEFAULT_CRITICAL;
+  if (!state.battle) state.battle = { rivalName: '', rivalAvg: null };
+  if (!state.hallOfFame) state.hallOfFame = [];
+  if (!state.groups) state.groups = [];
+  state.students.forEach(st => { if (st.groupId === undefined) st.groupId = null; });
+  // migrate old 5-stage thresholds/labels to the new 11-stage scale if a save predates this update
+  if (state.thresholds.length !== STAGE_LABELS.length) {
+    state.thresholds = DEFAULT_THRESHOLDS.slice();
+  }
+
+  let leaderboardMode = 'individual'; // 'individual' | 'group'
+  let leaderboardPeriod = 'all'; // 'all' | 'week' | 'month'
+
+  // ---------- Navigation ----------
+  function showScreen(name) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('screen-' + name).classList.add('active');
+    document.querySelectorAll('.tabbtn').forEach(b => b.classList.toggle('active', b.dataset.screen === name));
+  }
+  document.querySelectorAll('.tabbtn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      showScreen(btn.dataset.screen);
+      if (btn.dataset.screen === 'leaderboard') { renderLeaderboard(); renderBattle(); renderHallOfFame(); }
+    });
+  });
+  document.getElementById('settingsBtn').addEventListener('click', () => showScreen('settings'));
+
+  // ---------- Setup ----------
+  document.getElementById('createClassBtn').addEventListener('click', () => {
+    const name = document.getElementById('className').value.trim();
+    if (!name) { alert('Please enter a class name.'); return; }
+    state.className = name;
+    state.setupDone = true;
+    saveState();
+    boot();
+  });
+
+  // ---------- Level logic ----------
+  // stage scale: -2 Critical, -1 Unwell, 0..N normal growth stages
+  function levelFor(points) {
+    if (points <= state.criticalThreshold) return { stage: -2, label: 'Critical', emoji: '💤' };
+    if (points < 0) return { stage: -1, label: 'Unwell', emoji: '🤒' };
+    let stageIdx = 0;
+    for (let i = 0; i < state.thresholds.length; i++) {
+      if (points >= state.thresholds[i]) stageIdx = i;
+    }
+    return { stage: stageIdx, label: STAGE_LABELS[stageIdx], emoji: STAGE_EMOJIS[stageIdx] };
+  }
+
+  function totalPoints(student) {
+    return student.history.reduce((sum, h) => sum + h.delta, 0);
+  }
+
+  function recentMomentum(student) {
+    const last3 = student.history.slice(-3);
+    return last3.reduce((sum, h) => sum + h.delta, 0);
+  }
+
+  // Rolling-window period totals (non-destructive - full history is always kept,
+  // this just filters which entries count toward the number shown for a given view)
+  function periodCutoff(period) {
+    const now = Date.now();
+    if (period === 'week') return now - 7 * 24 * 60 * 60 * 1000;
+    if (period === 'month') return now - 30 * 24 * 60 * 60 * 1000;
+    return -Infinity; // 'all'
+  }
+  function pointsInPeriod(student, period) {
+    const cutoff = periodCutoff(period);
+    return student.history.filter(h => h.ts >= cutoff).reduce((sum, h) => sum + h.delta, 0);
+  }
+
+  // ---------- Celebration toast ----------
+  let celebrationTimer = null;
+  function showCelebration(text) {
+    const el = document.getElementById('celebrationToast');
+    el.textContent = text;
+    el.classList.add('show');
+    clearTimeout(celebrationTimer);
+    celebrationTimer = setTimeout(() => el.classList.remove('show'), 2400);
+  }
+
+  // ---------- Level-up sound (synthesized, no external audio file needed) ----------
+  let audioCtx = null;
+  function playLevelUpSound() {
+    try {
+      if (!audioCtx) {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        audioCtx = new Ctx();
+      }
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      const notes = [523.25, 659.25, 783.99]; // C5, E5, G5 - simple ascending chime
+      notes.forEach((freq, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        const startTime = audioCtx.currentTime + i * 0.11;
+        gain.gain.setValueAtTime(0.0001, startTime);
+        gain.gain.exponentialRampToValueAtTime(0.25, startTime + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, startTime + 0.28);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + 0.3);
+      });
+    } catch (e) { /* audio not available in this environment - fail silently */ }
+  }
+
+  // ---------- Dashboard render ----------
+  function renderDashboard() {
+    document.getElementById('dashClassName').textContent = state.className;
+    document.getElementById('dashCount').textContent = state.students.length + ' student(s)';
+    const wrap = document.getElementById('studentGridWrap');
+    if (state.students.length === 0) {
+      wrap.innerHTML = '<div class="empty-state"><div class="big">🐣</div>No students yet.<br>Tap "+ Add Student" to get started.</div>';
+      return;
+    }
+    const grid = document.createElement('div');
+    grid.className = 'student-grid';
+    state.students.forEach(st => {
+      const pts = totalPoints(st);
+      const lvl = levelFor(pts);
+      const card = document.createElement('div');
+      card.className = 'student-card' + (lvl.stage < 0 ? ' sick' : '');
+      card.innerHTML = `
+        ${lvl.stage < 0 ? `<div class="sick-badge">${lvl.label.toUpperCase()}</div>` : ''}
+        <div class="pet-emoji">${st.species}${lvl.stage >= 0 ? ' ' + lvl.emoji : ' ' + lvl.emoji}</div>
+        <div class="name">${escapeHtml(st.name)}</div>
+        <div class="level">${lvl.label}</div>
+        <div class="points">${pts} pts</div>
+      `;
+      card.addEventListener('click', () => openDetail(st.id));
+      grid.appendChild(card);
+    });
+    wrap.innerHTML = '';
+    wrap.appendChild(grid);
+  }
+
+  function escapeHtml(s) {
+    return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // ---------- Add student ----------
+  let selectedSpecies = SPECIES[0];
+  function openAddStudentModal() {
+    const picker = document.getElementById('speciesPicker');
+    picker.innerHTML = '';
+    SPECIES.forEach(sp => {
+      const opt = document.createElement('div');
+      opt.className = 'opt' + (sp === selectedSpecies ? ' selected' : '');
+      opt.textContent = sp;
+      opt.addEventListener('click', () => {
+        selectedSpecies = sp;
+        picker.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+      });
+      picker.appendChild(opt);
+    });
+    document.getElementById('newStudentName').value = '';
+    document.getElementById('addStudentModal').classList.add('active');
+  }
+  document.getElementById('addStudentBtn').addEventListener('click', openAddStudentModal);
+  document.getElementById('confirmAddStudentBtn').addEventListener('click', () => {
+    const name = document.getElementById('newStudentName').value.trim();
+    if (!name) { alert('Please enter a student name.'); return; }
+    state.students.push({
+      id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      name, species: selectedSpecies, history: [], groupId: null
+    });
+    saveState();
+    closeModal('addStudentModal');
+    renderDashboard();
+    openCertificate(name, selectedSpecies);
+  });
+
+  function openCertificate(name, species) {
+    document.getElementById('certEmoji').textContent = species + ' 🥚';
+    document.getElementById('certName').textContent = name;
+    document.getElementById('certDate').textContent = 'Adopted on ' + new Date().toLocaleDateString();
+    document.getElementById('certModal').classList.add('active');
+  }
+  document.getElementById('certDoneBtn').addEventListener('click', () => closeModal('certModal'));
+
+  // ---------- Import roster (Excel/CSV) ----------
+  const NAME_COLUMNS = ['name', 'student name', 'student', 'full name'];
+  const GROUP_COLUMNS = ['group', 'team', 'group name'];
+  let pendingImportRows = [];
+
+  function splitCSVLine(line) {
+    const result = [];
+    let cur = '';
+    let inQuotes = false;
+    for (let i = 0; i < line.length; i++) {
+      const c = line[i];
+      if (c === '"') { inQuotes = !inQuotes; continue; }
+      if (c === ',' && !inQuotes) { result.push(cur); cur = ''; continue; }
+      cur += c;
+    }
+    result.push(cur);
+    return result;
+  }
+  function parseCSV(text) {
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+    if (lines.length === 0) return [];
+    const headers = splitCSVLine(lines[0]).map(h => h.trim().toLowerCase());
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const cells = splitCSVLine(lines[i]);
+      const row = {};
+      headers.forEach((h, idx) => { row[h] = (cells[idx] || '').trim(); });
+      rows.push(row);
+    }
+    return rows;
+  }
+  function findColumn(row, candidates) {
+    const keys = Object.keys(row);
+    for (const cand of candidates) {
+      const found = keys.find(k => k === cand);
+      if (found) return found;
+    }
+    return null;
+  }
+  function rowsToImportItems(rows) {
+    return rows.map(row => {
+      const nameKey = findColumn(row, NAME_COLUMNS);
+      const groupKey = findColumn(row, GROUP_COLUMNS);
+      return {
+        name: nameKey ? row[nameKey] : '',
+        groupName: groupKey ? row[groupKey] : '',
+      };
+    }).filter(r => r.name);
+  }
+
+  function renderImportPreview() {
+    const wrap = document.getElementById('importPreview');
+    const confirmBtn = document.getElementById('confirmImportBtn');
+    if (pendingImportRows.length === 0) {
+      wrap.innerHTML = '<p class="muted">No valid rows found. Make sure the file has a "Name" column.</p>';
+      confirmBtn.disabled = true;
+      return;
+    }
+    wrap.innerHTML = `<p class="muted">${pendingImportRows.length} student(s) found:</p>` +
+      pendingImportRows.map(r => `
+        <div class="hof-row">
+          <div class="hof-info">
+            <div class="hof-name">${escapeHtml(r.name)}</div>
+            ${r.groupName ? `<div class="hof-date">Group: ${escapeHtml(r.groupName)}</div>` : ''}
+          </div>
+        </div>
+      `).join('');
+    confirmBtn.disabled = false;
+  }
+
+  document.getElementById('importRosterBtn').addEventListener('click', () => {
+    pendingImportRows = [];
+    document.getElementById('importFile').value = '';
+    document.getElementById('importPreview').innerHTML = '';
+    document.getElementById('confirmImportBtn').disabled = true;
+    document.getElementById('importModal').classList.add('active');
+  });
+
+  document.getElementById('downloadTemplateBtn').addEventListener('click', () => {
+    const csv = 'Name,Group\nAli,Team Falcon\nBeng,Team Falcon\nCindy,Team Tiger\n';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'class_roster_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  document.getElementById('importFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop().toLowerCase();
+    try {
+      let rows = [];
+      if (ext === 'csv') {
+        const text = await file.text();
+        rows = parseCSV(text);
+      } else if (ext === 'xlsx' || ext === 'xls') {
+        if (typeof XLSX === 'undefined') {
+          alert('Reading Excel files needs an internet connection the first time (to load the Excel reader). No connection right now — please save this file as CSV (File > Save As > CSV) and upload that instead.');
+          return;
+        }
+        const buf = await file.arrayBuffer();
+        const wb = XLSX.read(buf, { type: 'array' });
+        const firstSheet = wb.Sheets[wb.SheetNames[0]];
+        const json = XLSX.utils.sheet_to_json(firstSheet, { defval: '' });
+        rows = json.map(r => {
+          const norm = {};
+          Object.keys(r).forEach(k => { norm[k.trim().toLowerCase()] = String(r[k]).trim(); });
+          return norm;
+        });
+      } else {
+        alert('Please upload a .csv, .xlsx, or .xls file.');
+        return;
+      }
+      pendingImportRows = rowsToImportItems(rows);
+      renderImportPreview();
+    } catch (err) {
+      alert('Could not read that file. Make sure it is a valid CSV or Excel file, and that the first row has column headers.');
+    }
+  });
+
+  document.getElementById('confirmImportBtn').addEventListener('click', () => {
+    const count = pendingImportRows.length;
+    let speciesIdx = state.students.length;
+    pendingImportRows.forEach(item => {
+      let groupId = null;
+      if (item.groupName) {
+        let g = state.groups.find(g => g.name.toLowerCase() === item.groupName.toLowerCase());
+        if (!g) {
+          g = { id: 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), name: item.groupName };
+          state.groups.push(g);
+        }
+        groupId = g.id;
+      }
+      state.students.push({
+        id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+        name: item.name,
+        species: SPECIES[speciesIdx % SPECIES.length],
+        history: [],
+        groupId,
+      });
+      speciesIdx++;
+    });
+    saveState();
+    pendingImportRows = [];
+    closeModal('importModal');
+    renderDashboard();
+    renderGroups();
+    renderLeaderboard();
+    showCelebration(`🎉 ${count} student(s) imported!`);
+  });
+
+  // ---------- Student detail / quick actions ----------
+  let currentDetailId = null;
+  function openDetail(id) {
+    currentDetailId = id;
+    renderDetail();
+    document.getElementById('detailModal').classList.add('active');
+  }
+  function renderDetail() {
+    const st = state.students.find(s => s.id === currentDetailId);
+    if (!st) return;
+    const pts = totalPoints(st);
+    const lvl = levelFor(pts);
+    document.getElementById('detailName').textContent = st.name;
+    document.getElementById('detailEmoji').textContent = st.species + ' ' + lvl.emoji;
+    document.getElementById('detailLevel').textContent = lvl.label;
+    document.getElementById('detailPoints').textContent = pts + ' points';
+
+    const groupSelect = document.getElementById('detailGroupSelect');
+    groupSelect.innerHTML = '<option value="">No group</option>' +
+      state.groups.map(g => `<option value="${g.id}" ${st.groupId === g.id ? 'selected' : ''}>${escapeHtml(g.name)}</option>`).join('');
+    groupSelect.onchange = () => {
+      st.groupId = groupSelect.value || null;
+      saveState();
+    };
+
+    const qa = document.getElementById('quickActions');
+    qa.innerHTML = '';
+    state.categories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = cat.points >= 0 ? 'pos' : 'neg';
+      btn.textContent = `${cat.name} (${cat.points > 0 ? '+' : ''}${cat.points})`;
+      btn.addEventListener('click', () => {
+        const beforeStage = levelFor(totalPoints(st)).stage;
+        st.history.push({ ts: Date.now(), label: cat.name, delta: cat.points });
+        const afterLvl = levelFor(totalPoints(st));
+        saveState();
+        renderDetail();
+        renderDashboard();
+        if (afterLvl.stage > beforeStage) {
+          showCelebration(`🎉 ${st.name}'s pet leveled up to ${afterLvl.label}!`);
+          playLevelUpSound();
+        }
+      });
+      qa.appendChild(btn);
+    });
+
+    const hist = document.getElementById('detailHistory');
+    if (st.history.length === 0) {
+      hist.innerHTML = '<div class="muted">No activity logged yet.</div>';
+    } else {
+      hist.innerHTML = st.history.slice().reverse().map(h => `
+        <div class="entry ${h.delta >= 0 ? 'pos' : 'neg'}">
+          <span>${escapeHtml(h.label)}</span>
+          <span>${h.delta > 0 ? '+' : ''}${h.delta}</span>
+        </div>
+      `).join('');
+    }
+  }
+  document.getElementById('removeStudentBtn').addEventListener('click', () => {
+    if (!confirm('Remove this student from the class?')) return;
+    state.students = state.students.filter(s => s.id !== currentDetailId);
+    saveState();
+    closeModal('detailModal');
+    renderDashboard();
+  });
+
+  // ---------- Leaderboard ----------
+  document.querySelectorAll('.lb-mode-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      leaderboardMode = btn.dataset.mode;
+      document.querySelectorAll('.lb-mode-btn').forEach(b => b.classList.toggle('active', b === btn));
+      document.getElementById('leaderboardList').style.display = leaderboardMode === 'individual' ? 'block' : 'none';
+      document.getElementById('groupPkList').style.display = leaderboardMode === 'group' ? 'block' : 'none';
+      renderLeaderboard();
+    });
+  });
+  document.querySelectorAll('.lb-period-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      leaderboardPeriod = btn.dataset.period;
+      document.querySelectorAll('.lb-period-btn').forEach(b => b.classList.toggle('active', b === btn));
+      renderLeaderboard();
+    });
+  });
+
+  function renderLeaderboard() {
+    if (leaderboardMode === 'group') { renderGroupPk(); return; }
+    const wrap = document.getElementById('leaderboardList');
+    if (state.students.length === 0) {
+      wrap.innerHTML = '<div class="empty-state"><div class="big">🏆</div>Add students to see rankings.</div>';
+      return;
+    }
+    const ranked = state.students
+      .map(st => ({ st, pts: pointsInPeriod(st, leaderboardPeriod), momentum: recentMomentum(st) }))
+      .sort((a, b) => b.pts - a.pts);
+    const medals = ['🥇', '🥈', '🥉'];
+    wrap.innerHTML = ranked.map((r, i) => {
+      const lvl = levelFor(totalPoints(r.st)); // pet stage always reflects lifetime points, not the filtered view
+      const trendClass = r.momentum > 0 ? 'up' : (r.momentum < 0 ? 'down' : 'flat');
+      const trendArrow = r.momentum > 0 ? '▲' : (r.momentum < 0 ? '▼' : '—');
+      return `
+        <div class="lb-row">
+          <div class="lb-rank ${i < 3 ? 'medal' : ''}">${i < 3 ? medals[i] : (i + 1)}</div>
+          <div class="lb-emoji">${r.st.species}${lvl.emoji}</div>
+          <div class="lb-info">
+            <div class="lb-name">${escapeHtml(r.st.name)}</div>
+            <div class="lb-level">${lvl.label}</div>
+          </div>
+          <div class="lb-points">${r.pts} pts</div>
+          <div class="lb-trend ${trendClass}">${trendArrow}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function renderGroupPk() {
+    const wrap = document.getElementById('groupPkList');
+    if (state.groups.length === 0) {
+      wrap.innerHTML = '<div class="empty-state"><div class="big">👥</div>No groups yet. Create groups in Settings and assign students to them.</div>';
+      return;
+    }
+    const ranked = state.groups.map(g => {
+      const members = state.students.filter(st => st.groupId === g.id);
+      const total = members.reduce((sum, st) => sum + pointsInPeriod(st, leaderboardPeriod), 0);
+      const avg = members.length ? total / members.length : 0;
+      return { group: g, members, total, avg };
+    }).sort((a, b) => b.total - a.total);
+    const medals = ['🥇', '🥈', '🥉'];
+    wrap.innerHTML = ranked.map((r, i) => `
+      <div class="lb-row">
+        <div class="lb-rank ${i < 3 ? 'medal' : ''}">${i < 3 ? medals[i] : (i + 1)}</div>
+        <div class="lb-emoji">👥</div>
+        <div class="lb-info">
+          <div class="lb-name">${escapeHtml(r.group.name)}</div>
+          <div class="lb-level">${r.members.length} member(s) · avg ${r.avg.toFixed(1)} pts</div>
+        </div>
+        <div class="lb-points">${r.total} pts</div>
+      </div>
+    `).join('');
+  }
+
+  // ---------- Class Battle ----------
+  function classAverage() {
+    if (state.students.length === 0) return 0;
+    const sum = state.students.reduce((s, st) => s + totalPoints(st), 0);
+    return sum / state.students.length;
+  }
+  function renderBattle() {
+    document.getElementById('rivalName').value = state.battle.rivalName || '';
+    document.getElementById('rivalAvg').value = state.battle.rivalAvg != null ? state.battle.rivalAvg : '';
+    const resultWrap = document.getElementById('battleResult');
+    if (state.battle.rivalAvg == null || !state.battle.rivalName) {
+      resultWrap.innerHTML = '<p class="muted">Enter a rival class to see the comparison.</p>';
+      return;
+    }
+    const mine = classAverage();
+    const rival = state.battle.rivalAvg;
+    const max = Math.max(mine, rival, 1);
+    const mineDiff = mine - rival;
+    resultWrap.innerHTML = `
+      <div class="battle-bar-wrap">
+        <div class="battle-label"><span>${escapeHtml(state.className)}</span><span>${mine.toFixed(1)} avg</span></div>
+        <div class="battle-track"><div class="battle-fill mine" style="width:${(mine / max) * 100}%"></div></div>
+      </div>
+      <div class="battle-bar-wrap">
+        <div class="battle-label"><span>${escapeHtml(state.battle.rivalName)}</span><span>${rival.toFixed(1)} avg</span></div>
+        <div class="battle-track"><div class="battle-fill rival" style="width:${(rival / max) * 100}%"></div></div>
+      </div>
+      <div class="battle-verdict">${
+        mineDiff > 0
+          ? `🔥 ${escapeHtml(state.className)} leads by ${mineDiff.toFixed(1)} points!`
+          : mineDiff < 0
+          ? `${escapeHtml(state.battle.rivalName)} leads by ${Math.abs(mineDiff).toFixed(1)} — rally the class!`
+          : `It's a tie — anyone's game!`
+      }</div>
+    `;
+  }
+  document.getElementById('saveBattleBtn').addEventListener('click', () => {
+    const name = document.getElementById('rivalName').value.trim();
+    const avg = parseFloat(document.getElementById('rivalAvg').value);
+    if (!name || isNaN(avg)) { alert('Enter a rival class name and average.'); return; }
+    state.battle = { rivalName: name, rivalAvg: avg };
+    saveState();
+    renderBattle();
+  });
+
+  // ---------- Hall of Fame ----------
+  function renderHallOfFame() {
+    const wrap = document.getElementById('hallOfFameList');
+    if (state.hallOfFame.length === 0) {
+      wrap.innerHTML = '<p class="muted">No champions crowned yet.</p>';
+      return;
+    }
+    wrap.innerHTML = state.hallOfFame.slice().reverse().map(h => `
+      <div class="hof-row">
+        <div class="hof-emoji">${h.species}🏅</div>
+        <div class="hof-info">
+          <div class="hof-name">${escapeHtml(h.name)}</div>
+          <div class="hof-date">${h.date} — ${h.points} pts that week</div>
+        </div>
+      </div>
+    `).join('');
+  }
+  document.getElementById('crownChampionBtn').addEventListener('click', () => {
+    if (state.students.length === 0) { alert('Add students first.'); return; }
+    const ranked = state.students
+      .map(st => ({ st, pts: totalPoints(st) }))
+      .sort((a, b) => b.pts - a.pts);
+    const champ = ranked[0];
+    if (!confirm(`Crown ${champ.st.name} as this week's champion with ${champ.pts} points, then reset every student's points to 0 for a fresh week?`)) return;
+    state.hallOfFame.push({
+      name: champ.st.name,
+      species: champ.st.species,
+      points: champ.pts,
+      date: new Date().toLocaleDateString(),
+    });
+    state.students.forEach(st => { st.history = []; });
+    saveState();
+    renderHallOfFame();
+    renderLeaderboard();
+    renderDashboard();
+    alert(`${champ.st.name} crowned! All points reset for the new week.`);
+  });
+
+  // ---------- Projector / Big Screen mode ----------
+  let projectorInterval = null;
+  function renderProjectorBoard() {
+    document.getElementById('projClassName').textContent = state.className;
+    const board = document.getElementById('projBoard');
+    if (state.students.length === 0) {
+      board.innerHTML = '<div class="proj-sub">Add students to see the board.</div>';
+      return;
+    }
+    const ranked = state.students
+      .map(st => ({ st, pts: totalPoints(st) }))
+      .sort((a, b) => b.pts - a.pts);
+    const medals = ['🥇', '🥈', '🥉'];
+    board.innerHTML = ranked.map((r, i) => {
+      const lvl = levelFor(r.pts);
+      return `
+        <div class="proj-row">
+          <div class="proj-rank">${i < 3 ? medals[i] : (i + 1)}</div>
+          <div class="proj-emoji">${r.st.species}${lvl.emoji}</div>
+          <div>
+            <div class="proj-name">${escapeHtml(r.st.name)}</div>
+            <div class="proj-level">${lvl.label}</div>
+          </div>
+          <div class="proj-points" style="margin-left:auto;">${r.pts} pts</div>
+        </div>
+      `;
+    }).join('');
+  }
+  function openProjector() {
+    renderProjectorBoard();
+    document.getElementById('projectorOverlay').classList.add('active');
+    clearInterval(projectorInterval);
+    projectorInterval = setInterval(renderProjectorBoard, 5000);
+    const el = document.documentElement;
+    if (el.requestFullscreen) { el.requestFullscreen().catch(() => {}); }
+  }
+  function closeProjector() {
+    document.getElementById('projectorOverlay').classList.remove('active');
+    clearInterval(projectorInterval);
+    if (document.fullscreenElement && document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    }
+  }
+  document.getElementById('projectorBtn').addEventListener('click', openProjector);
+  document.getElementById('projExitBtn').addEventListener('click', closeProjector);
+  document.getElementById('projRefreshBtn').addEventListener('click', renderProjectorBoard);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && document.getElementById('projectorOverlay').classList.contains('active')) {
+      closeProjector();
+    }
+  });
+
+  // ---------- Groups ----------
+  function renderGroups() {
+    const list = document.getElementById('groupList');
+    if (state.groups.length === 0) {
+      list.innerHTML = '<p class="muted">No groups yet.</p>';
+      return;
+    }
+    list.innerHTML = '';
+    state.groups.forEach((g, idx) => {
+      const memberCount = state.students.filter(st => st.groupId === g.id).length;
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.innerHTML = `<span>${escapeHtml(g.name)} (${memberCount})</span>`;
+      const rm = document.createElement('button');
+      rm.textContent = '✕';
+      rm.addEventListener('click', () => {
+        if (!confirm(`Delete group "${g.name}"? Members will become unassigned.`)) return;
+        state.students.forEach(st => { if (st.groupId === g.id) st.groupId = null; });
+        state.groups.splice(idx, 1);
+        saveState();
+        renderGroups();
+        renderLeaderboard();
+      });
+      chip.appendChild(rm);
+      list.appendChild(chip);
+    });
+  }
+  document.getElementById('addGroupBtn').addEventListener('click', () => {
+    const name = document.getElementById('newGroupName').value.trim();
+    if (!name) { alert('Enter a group name.'); return; }
+    state.groups.push({ id: 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), name });
+    saveState();
+    document.getElementById('newGroupName').value = '';
+    renderGroups();
+  });
+
+  // ---------- Parent share (no backend - native share sheet or clipboard) ----------
+  function buildShareText(st) {
+    const pts = totalPoints(st);
+    const lvl = levelFor(pts);
+    return `${st.species} ${st.name}'s pet in ${state.className} is now "${lvl.label}" (${pts} points) as of ${new Date().toLocaleDateString()}. 🎉`;
+  }
+  document.getElementById('shareUpdateBtn').addEventListener('click', async () => {
+    const st = state.students.find(s => s.id === currentDetailId);
+    if (!st) return;
+    const text = buildShareText(st);
+    if (navigator.share) {
+      try { await navigator.share({ text }); return; } catch (e) { /* user cancelled or unsupported - fall through to clipboard */ }
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      try {
+        await navigator.clipboard.writeText(text);
+        alert('Copied! Paste this into WhatsApp, SMS, or email to share with the parent:\n\n' + text);
+        return;
+      } catch (e) { /* clipboard blocked - fall through to alert-only */ }
+    }
+    alert('Copy this to share with the parent:\n\n' + text);
+  });
+
+  // ---------- Settings: categories ----------
+  function renderCategories() {
+    const list = document.getElementById('categoryList');
+    list.innerHTML = '';
+    state.categories.forEach((cat, idx) => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.innerHTML = `<span>${escapeHtml(cat.name)} (${cat.points > 0 ? '+' : ''}${cat.points})</span>`;
+      const rm = document.createElement('button');
+      rm.textContent = '✕';
+      rm.addEventListener('click', () => {
+        state.categories.splice(idx, 1);
+        saveState();
+        renderCategories();
+      });
+      chip.appendChild(rm);
+      list.appendChild(chip);
+    });
+  }
+  document.getElementById('addCatBtn').addEventListener('click', () => {
+    const name = document.getElementById('newCatName').value.trim();
+    const points = parseInt(document.getElementById('newCatPoints').value, 10);
+    if (!name || isNaN(points)) { alert('Enter a name and a point value.'); return; }
+    state.categories.push({ name, points });
+    saveState();
+    document.getElementById('newCatName').value = '';
+    document.getElementById('newCatPoints').value = '';
+    renderCategories();
+  });
+
+  // ---------- Settings: thresholds ----------
+  function renderThresholds() {
+    const wrap = document.getElementById('thresholdInputs');
+    wrap.innerHTML = '';
+    STAGE_LABELS.forEach((label, i) => {
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.style.marginTop = '6px';
+      row.innerHTML = `
+        <label style="flex:1; margin:6px 0 0;">${STAGE_EMOJIS[i]} ${label}</label>
+        <input type="number" data-th-idx="${i}" value="${state.thresholds[i]}" style="max-width:100px;" ${i===0 ? 'disabled' : ''}>
+      `;
+      wrap.appendChild(row);
+    });
+    document.getElementById('criticalThresholdInput').value = state.criticalThreshold;
+  }
+  document.getElementById('saveThresholdsBtn').addEventListener('click', () => {
+    const inputs = document.querySelectorAll('[data-th-idx]');
+    const vals = state.thresholds.slice();
+    inputs.forEach(inp => {
+      const i = parseInt(inp.dataset.thIdx, 10);
+      const v = parseInt(inp.value, 10);
+      if (!isNaN(v)) vals[i] = v;
+    });
+    state.thresholds = vals;
+    const crit = parseInt(document.getElementById('criticalThresholdInput').value, 10);
+    if (!isNaN(crit)) state.criticalThreshold = crit;
+    saveState();
+    alert('Thresholds saved.');
+  });
+
+  // ---------- Export / reset ----------
+  document.getElementById('exportBtn').addEventListener('click', () => {
+    let csv = 'Student,Species,TotalPoints,Level,Timestamp,Category,Delta\n';
+    state.students.forEach(st => {
+      const pts = totalPoints(st);
+      const lvl = levelFor(pts);
+      if (st.history.length === 0) {
+        csv += `${csvEsc(st.name)},${st.species},${pts},${lvl.label},,,\n`;
+      } else {
+        st.history.forEach(h => {
+          csv += `${csvEsc(st.name)},${st.species},${pts},${lvl.label},${new Date(h.ts).toISOString()},${csvEsc(h.label)},${h.delta}\n`;
+        });
+      }
+    });
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = (state.className || 'class') + '_pet_garden_export.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+  function csvEsc(s) {
+    if (s.includes(',') || s.includes('"')) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    if (!confirm('This will delete all students and history for this class. Continue?')) return;
+    state.students = [];
+    saveState();
+    renderDashboard();
+    alert('Class data reset.');
+  });
+
+  // ---------- Modals ----------
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('active');
+  }
+  document.querySelectorAll('[data-close]').forEach(btn => {
+    btn.addEventListener('click', () => closeModal(btn.dataset.close));
+  });
+  document.querySelectorAll('.modal-overlay').forEach(ov => {
+    ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('active'); });
+  });
+
+  // ---------- Boot ----------
+  function boot() {
+    if (state.setupDone) {
+      document.getElementById('tabbar').style.display = 'flex';
+      renderCategories();
+      renderThresholds();
+      renderGroups();
+      renderDashboard();
+      renderLeaderboard();
+      renderBattle();
+      renderHallOfFame();
+      showScreen('dashboard');
+    } else {
+      document.getElementById('tabbar').style.display = 'none';
+      showScreen('setup');
+    }
+  }
+  boot();
+})();
+</script>
+
+</body>
+</html>
