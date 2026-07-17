@@ -171,6 +171,17 @@
   }
   .tabbar button.active { color: var(--teal); font-weight: 700; }
 
+  .class-switcher-bar {
+    display: none; align-items: center; gap: 8px; background: white; border-bottom: 1px solid var(--border);
+    padding: 8px 12px; position: sticky; top: 49px; z-index: 9;
+  }
+  .class-switcher-bar select {
+    flex: 1; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; font-size: 13px; font-weight: 600; color: var(--navy);
+  }
+  .class-switcher-bar button {
+    white-space: nowrap; background: white; color: var(--teal); border: 1px solid var(--teal); padding: 8px 10px; border-radius: 8px; font-size: 13px; cursor: pointer;
+  }
+
   .modal-overlay {
     display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); align-items: flex-end; justify-content: center; z-index: 20;
   }
@@ -295,6 +306,11 @@
   </div>
 </header>
 
+<div class="class-switcher-bar" id="classSwitcherBar">
+  <select id="classSwitcherSelect"></select>
+  <button id="newClassBtn">+ New Class</button>
+</div>
+
 <main>
 
   <!-- SETUP SCREEN -->
@@ -364,6 +380,15 @@
   <!-- SETTINGS SCREEN -->
   <div class="screen" id="screen-settings">
     <div class="card">
+      <h2>🏫 This class</h2>
+      <p class="muted">Rename this class, or delete it entirely (this only removes the currently selected class — your other classes are untouched).</p>
+      <label>Class name</label>
+      <input type="text" id="renameClassInput">
+      <button class="primary" id="renameClassBtn">Save name</button>
+      <button class="secondary" id="deleteClassBtn" style="width:100%; margin-top:10px; border-color:var(--bad); color:var(--bad);">Delete this class</button>
+    </div>
+
+    <div class="card">
       <h2>👥 Groups</h2>
       <p class="muted">Create groups (e.g. table teams), then assign each student to one from their profile — needed for Group PK ranking.</p>
       <div id="groupList" class="chip-list"></div>
@@ -431,6 +456,18 @@
     <input type="file" id="importFile" accept=".csv,.xlsx,.xls">
     <div id="importPreview" style="margin-top:10px; max-height:240px; overflow-y:auto;"></div>
     <button class="primary" id="confirmImportBtn" disabled>Import students</button>
+  </div>
+</div>
+
+<!-- NEW CLASS MODAL -->
+<div class="modal-overlay" id="newClassModal">
+  <div class="modal">
+    <div class="modal-header"><h3>Create a new class</h3><button class="close-btn" data-close="newClassModal">&times;</button></div>
+    <label>Class name</label>
+    <input type="text" id="newClassName" placeholder="e.g. Primary 4B">
+    <button class="primary" id="confirmNewClassBtn">Create class</button>
+    <div class="muted" style="text-align:center; margin:14px 0 6px;">— or —</div>
+    <button class="secondary" id="importForNewClassBtn" style="width:100%;">📥 Import roster from Excel/CSV (auto-creates class)</button>
   </div>
 </div>
 
@@ -558,39 +595,68 @@
     });
   }
 
-  function loadState() {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch (e) {}
-    return null;
-  }
-  function saveState() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  // ---------- Multi-class data model ----------
+  // Each browser can hold several classes (e.g. Primary 3A, Primary 4B). appState.classes is the array
+  // of all of them; appState.currentClassId points at whichever one is active. `state` is always a direct
+  // reference to that active class's object inside appState.classes - mutating state.foo mutates the same
+  // object that lives inside appState, so every existing state.X read/write below still works unchanged;
+  // only loading, saving, creating, switching, and deleting classes needed new code.
+  function makeNewClass(name) {
+    return {
+      id: 'cls_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+      className: name,
+      categories: DEFAULT_CATEGORIES.slice(),
+      thresholds: DEFAULT_THRESHOLDS.slice(),
+      criticalThreshold: DEFAULT_CRITICAL,
+      students: [], // {id, name, species, color, history:[{ts, label, delta}], groupId}
+      battle: { rivalName: '', rivalAvg: null },
+      hallOfFame: [],
+      groups: [], // {id, name}
+    };
   }
 
-  let state = loadState() || {
-    className: '',
-    categories: DEFAULT_CATEGORIES.slice(),
-    thresholds: DEFAULT_THRESHOLDS.slice(),
-    criticalThreshold: DEFAULT_CRITICAL,
-    students: [], // {id, name, species, points, history:[{ts, label, delta}]}
-    setupDone: false,
-    battle: { rivalName: '', rivalAvg: null },
-    hallOfFame: [],
-    groups: [], // {id, name}
-  };
-  // migrate older saved state that predates these fields
-  if (state.criticalThreshold === undefined) state.criticalThreshold = DEFAULT_CRITICAL;
-  if (!state.battle) state.battle = { rivalName: '', rivalAvg: null };
-  if (!state.hallOfFame) state.hallOfFame = [];
-  if (!state.groups) state.groups = [];
-  state.students.forEach(st => { if (st.groupId === undefined) st.groupId = null; });
-  state.students.forEach(st => { if (!st.color) st.color = 'Original'; });
-  // migrate old 5-stage thresholds/labels to the new 11-stage scale if a save predates this update
-  if (state.thresholds.length !== STAGE_LABELS.length) {
-    state.thresholds = DEFAULT_THRESHOLDS.slice();
+  function loadAppState() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.classes)) {
+        // already in the current multi-class format
+        return parsed;
+      }
+      if (parsed && parsed.setupDone && Array.isArray(parsed.students)) {
+        // old single-class save (pre-multi-class) - wrap it into classes[0] so nothing is lost
+        const migrated = {
+          id: 'cls_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
+          className: parsed.className || 'My Class',
+          categories: parsed.categories || DEFAULT_CATEGORIES.slice(),
+          thresholds: (parsed.thresholds && parsed.thresholds.length === STAGE_LABELS.length) ? parsed.thresholds : DEFAULT_THRESHOLDS.slice(),
+          criticalThreshold: parsed.criticalThreshold !== undefined ? parsed.criticalThreshold : DEFAULT_CRITICAL,
+          students: parsed.students || [],
+          battle: parsed.battle || { rivalName: '', rivalAvg: null },
+          hallOfFame: parsed.hallOfFame || [],
+          groups: parsed.groups || [],
+        };
+        migrated.students.forEach(st => {
+          if (st.groupId === undefined) st.groupId = null;
+          if (!st.color) st.color = 'Original';
+        });
+        return { currentClassId: migrated.id, classes: [migrated] };
+      }
+      return null; // unrecognized or never-set-up state - start fresh
+    } catch (e) { return null; }
   }
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+  }
+  function switchToClass(classId) {
+    appState.currentClassId = classId;
+    state = appState.classes.find(c => c.id === classId) || null;
+    saveState();
+  }
+
+  let appState = loadAppState() || { currentClassId: null, classes: [] };
+  let state = appState.currentClassId ? (appState.classes.find(c => c.id === appState.currentClassId) || null) : null;
 
   let leaderboardMode = 'individual'; // 'individual' | 'group'
   let leaderboardPeriod = 'all'; // 'all' | 'week' | 'month'
@@ -609,12 +675,58 @@
   });
   document.getElementById('settingsBtn').addEventListener('click', () => showScreen('settings'));
 
-  // ---------- Setup ----------
+  // ---------- Setup (creating the very first class) ----------
   document.getElementById('createClassBtn').addEventListener('click', () => {
     const name = document.getElementById('className').value.trim();
     if (!name) { alert('Please enter a class name.'); return; }
+    const newClass = makeNewClass(name);
+    appState.classes.push(newClass);
+    switchToClass(newClass.id);
+    boot();
+  });
+
+  // ---------- Class switcher (creating/switching/renaming/deleting classes) ----------
+  function renderClassSwitcher() {
+    const bar = document.getElementById('classSwitcherBar');
+    if (appState.classes.length === 0) { bar.style.display = 'none'; return; }
+    bar.style.display = 'flex';
+    const sel = document.getElementById('classSwitcherSelect');
+    sel.innerHTML = appState.classes.map(c =>
+      `<option value="${c.id}" ${c.id === appState.currentClassId ? 'selected' : ''}>${escapeHtml(c.className)} (${c.students.length})</option>`
+    ).join('');
+  }
+  document.getElementById('classSwitcherSelect').addEventListener('change', (e) => {
+    switchToClass(e.target.value);
+    boot();
+  });
+  document.getElementById('newClassBtn').addEventListener('click', () => {
+    document.getElementById('newClassName').value = '';
+    document.getElementById('newClassModal').classList.add('active');
+  });
+  document.getElementById('confirmNewClassBtn').addEventListener('click', () => {
+    const name = document.getElementById('newClassName').value.trim();
+    if (!name) { alert('Please enter a class name.'); return; }
+    const newClass = makeNewClass(name);
+    appState.classes.push(newClass);
+    switchToClass(newClass.id);
+    closeModal('newClassModal');
+    boot();
+    showCelebration(`🎉 "${name}" class created!`);
+  });
+  document.getElementById('renameClassBtn').addEventListener('click', () => {
+    const name = document.getElementById('renameClassInput').value.trim();
+    if (!name) { alert('Please enter a class name.'); return; }
     state.className = name;
-    state.setupDone = true;
+    saveState();
+    renderClassSwitcher();
+    document.getElementById('dashClassName').textContent = state.className;
+    alert('Class name updated.');
+  });
+  document.getElementById('deleteClassBtn').addEventListener('click', () => {
+    if (!confirm(`Delete "${state.className}" and all its data? This only removes this one class - your other classes are untouched. This cannot be undone.`)) return;
+    appState.classes = appState.classes.filter(c => c.id !== appState.currentClassId);
+    appState.currentClassId = appState.classes.length ? appState.classes[0].id : null;
+    state = appState.currentClassId ? appState.classes.find(c => c.id === appState.currentClassId) : null;
     saveState();
     boot();
   });
@@ -833,6 +945,7 @@
   const GROUP_COLUMNS = ['group', 'team', 'group name'];
   let pendingImportRows = [];
   let pendingImportFileName = '';
+  let importMode = 'existing'; // 'existing' (into active class) | 'setup' (creates the very first class) | 'newClass' (creates an additional class)
 
   function splitCSVLine(line) {
     const result = [];
@@ -900,6 +1013,7 @@
   }
 
   document.getElementById('importRosterBtn').addEventListener('click', () => {
+    importMode = 'existing';
     pendingImportRows = [];
     document.getElementById('importFile').value = '';
     document.getElementById('importPreview').innerHTML = '';
@@ -907,10 +1021,20 @@
     document.getElementById('importModal').classList.add('active');
   });
   document.getElementById('importRosterSetupBtn').addEventListener('click', () => {
+    importMode = 'setup';
     pendingImportRows = [];
     document.getElementById('importFile').value = '';
     document.getElementById('importPreview').innerHTML = '';
     document.getElementById('confirmImportBtn').disabled = true;
+    document.getElementById('importModal').classList.add('active');
+  });
+  document.getElementById('importForNewClassBtn').addEventListener('click', () => {
+    importMode = 'newClass';
+    pendingImportRows = [];
+    document.getElementById('importFile').value = '';
+    document.getElementById('importPreview').innerHTML = '';
+    document.getElementById('confirmImportBtn').disabled = true;
+    closeModal('newClassModal');
     document.getElementById('importModal').classList.add('active');
   });
 
@@ -929,8 +1053,8 @@
     const file = e.target.files[0];
     if (!file) return;
     pendingImportFileName = file.name;
-    if (!state.setupDone) {
-      const nameInput = document.getElementById('className');
+    if (importMode === 'setup' || importMode === 'newClass') {
+      const nameInput = document.getElementById(importMode === 'setup' ? 'className' : 'newClassName');
       if (nameInput && !nameInput.value.trim()) {
         nameInput.value = pendingImportFileName.replace(/\.(csv|xlsx|xls)$/i, '').replace(/[_-]+/g, ' ').trim();
       }
@@ -968,27 +1092,33 @@
 
   document.getElementById('confirmImportBtn').addEventListener('click', () => {
     const count = pendingImportRows.length;
-    if (!state.setupDone) {
-      let name = document.getElementById('className').value.trim();
+    let targetClass;
+    let createdNew = false;
+    if (importMode === 'setup' || importMode === 'newClass') {
+      const nameInputId = importMode === 'setup' ? 'className' : 'newClassName';
+      let name = document.getElementById(nameInputId).value.trim();
       if (!name) {
         name = pendingImportFileName.replace(/\.(csv|xlsx|xls)$/i, '').replace(/[_-]+/g, ' ').trim();
       }
       if (!name) name = 'My Class';
-      state.className = name;
-      state.setupDone = true;
+      targetClass = makeNewClass(name);
+      appState.classes.push(targetClass);
+      createdNew = true;
+    } else {
+      targetClass = state;
     }
-    let speciesIdx = state.students.length;
+    let speciesIdx = targetClass.students.length;
     pendingImportRows.forEach(item => {
       let groupId = null;
       if (item.groupName) {
-        let g = state.groups.find(g => g.name.toLowerCase() === item.groupName.toLowerCase());
+        let g = targetClass.groups.find(g => g.name.toLowerCase() === item.groupName.toLowerCase());
         if (!g) {
           g = { id: 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), name: item.groupName };
-          state.groups.push(g);
+          targetClass.groups.push(g);
         }
         groupId = g.id;
       }
-      state.students.push({
+      targetClass.students.push({
         id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
         name: item.name,
         species: SPECIES[speciesIdx % SPECIES.length],
@@ -998,9 +1128,15 @@
       });
       speciesIdx++;
     });
-    saveState();
+    if (createdNew) {
+      switchToClass(targetClass.id); // also saves
+    } else {
+      saveState();
+    }
     pendingImportRows = [];
     closeModal('importModal');
+    if (importMode === 'newClass') closeModal('newClassModal');
+    importMode = 'existing';
     boot();
     showCelebration(`🎉 ${count} student(s) imported!`);
   });
@@ -1449,20 +1585,28 @@
 
   // ---------- Boot ----------
   function boot() {
-    if (state.setupDone) {
-      document.getElementById('tabbar').style.display = 'flex';
-      renderCategories();
-      renderThresholds();
-      renderGroups();
-      renderDashboard();
-      renderLeaderboard();
-      renderBattle();
-      renderHallOfFame();
-      showScreen('dashboard');
-    } else {
+    if (appState.classes.length === 0) {
       document.getElementById('tabbar').style.display = 'none';
+      document.getElementById('classSwitcherBar').style.display = 'none';
       showScreen('setup');
+      return;
     }
+    if (!appState.currentClassId || !appState.classes.find(c => c.id === appState.currentClassId)) {
+      appState.currentClassId = appState.classes[0].id;
+      saveState();
+    }
+    state = appState.classes.find(c => c.id === appState.currentClassId);
+    document.getElementById('tabbar').style.display = 'flex';
+    renderClassSwitcher();
+    renderCategories();
+    renderThresholds();
+    renderGroups();
+    renderDashboard();
+    renderLeaderboard();
+    renderBattle();
+    renderHallOfFame();
+    document.getElementById('renameClassInput').value = state.className;
+    showScreen('dashboard');
   }
   boot();
 })();
