@@ -522,15 +522,20 @@
   const STAGE_EMOJIS = ['🥚','🐣','🌱','🍃','🧭','🔭','🏅','🦸','🎖️','🌟','👑'];
   const STAGE_LABELS = ['Egg', 'Lv.1 Hatchling', 'Lv.2 Sprout', 'Lv.3 Nibbler', 'Lv.4 Adventurer', 'Lv.5 Explorer', 'Lv.6 Champion', 'Lv.7 Hero', 'Lv.8 Master', 'Lv.9 Legend', 'Lv.10 Star King'];
   // Emoji have no built-in color variants, so "color" is a CSS filter tint applied to the pet emoji.
+  // Plain hue-rotate() only shifts whatever hues are already in the source image, which looks fine on
+  // single-tone emoji (a cat, a dog) but turns muddy on multi-tone ones (the unicorn's white/mane/horn all
+  // rotate together into a blend). grayscale(1) sepia(1) first collapses the emoji to one consistent base
+  // tone, so hue-rotate() then has a single color to rotate instead of several fighting each other -
+  // this gives a much more reliable, true-to-name result across every species.
   const COLOR_PALETTE = [
     { name: 'Original', filter: 'none', swatch: null },
-    { name: 'Red', filter: 'hue-rotate(-50deg) saturate(1.6)', swatch: '#E74C3C' },
-    { name: 'Orange', filter: 'hue-rotate(-20deg) saturate(1.5) brightness(1.05)', swatch: '#E67E22' },
-    { name: 'Yellow', filter: 'hue-rotate(15deg) saturate(1.6) brightness(1.15)', swatch: '#F1C40F' },
-    { name: 'Green', filter: 'hue-rotate(75deg) saturate(1.4)', swatch: '#2ECC71' },
-    { name: 'Blue', filter: 'hue-rotate(165deg) saturate(1.5)', swatch: '#3498DB' },
-    { name: 'Purple', filter: 'hue-rotate(230deg) saturate(1.4)', swatch: '#9B59B6' },
-    { name: 'Pink', filter: 'hue-rotate(290deg) saturate(1.3) brightness(1.1)', swatch: '#FF6B9D' },
+    { name: 'Red', filter: 'grayscale(1) sepia(1) hue-rotate(-50deg) saturate(6) brightness(0.9)', swatch: '#E74C3C' },
+    { name: 'Orange', filter: 'grayscale(1) sepia(1) hue-rotate(-10deg) saturate(5) brightness(1)', swatch: '#E67E22' },
+    { name: 'Yellow', filter: 'grayscale(1) sepia(1) hue-rotate(10deg) saturate(5) brightness(1.15)', swatch: '#F1C40F' },
+    { name: 'Green', filter: 'grayscale(1) sepia(1) hue-rotate(70deg) saturate(4) brightness(0.95)', swatch: '#2ECC71' },
+    { name: 'Blue', filter: 'grayscale(1) sepia(1) hue-rotate(175deg) saturate(4) brightness(0.95)', swatch: '#3498DB' },
+    { name: 'Purple', filter: 'grayscale(1) sepia(1) hue-rotate(230deg) saturate(4) brightness(0.9)', swatch: '#9B59B6' },
+    { name: 'Pink', filter: 'grayscale(1) sepia(1) hue-rotate(290deg) saturate(4) brightness(1.05)', swatch: '#FF6B9D' },
   ];
   function colorFilter(colorName) {
     const c = COLOR_PALETTE.find(c => c.name === colorName);
