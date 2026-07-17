@@ -296,6 +296,8 @@
       <label>Class name</label>
       <input type="text" id="className" placeholder="e.g. Primary 3A">
       <button class="primary" id="createClassBtn">Create class</button>
+      <div class="muted" style="text-align:center; margin:14px 0 6px;">— or —</div>
+      <button class="secondary" id="importRosterSetupBtn" style="width:100%;">📥 Import roster from Excel/CSV (auto-creates class)</button>
     </div>
   </div>
 
@@ -700,6 +702,7 @@
   const NAME_COLUMNS = ['name', 'student name', 'student', 'full name'];
   const GROUP_COLUMNS = ['group', 'team', 'group name'];
   let pendingImportRows = [];
+  let pendingImportFileName = '';
 
   function splitCSVLine(line) {
     const result = [];
@@ -773,6 +776,13 @@
     document.getElementById('confirmImportBtn').disabled = true;
     document.getElementById('importModal').classList.add('active');
   });
+  document.getElementById('importRosterSetupBtn').addEventListener('click', () => {
+    pendingImportRows = [];
+    document.getElementById('importFile').value = '';
+    document.getElementById('importPreview').innerHTML = '';
+    document.getElementById('confirmImportBtn').disabled = true;
+    document.getElementById('importModal').classList.add('active');
+  });
 
   document.getElementById('downloadTemplateBtn').addEventListener('click', () => {
     const csv = 'Name,Group\nAli,Team Falcon\nBeng,Team Falcon\nCindy,Team Tiger\n';
@@ -788,6 +798,13 @@
   document.getElementById('importFile').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    pendingImportFileName = file.name;
+    if (!state.setupDone) {
+      const nameInput = document.getElementById('className');
+      if (nameInput && !nameInput.value.trim()) {
+        nameInput.value = pendingImportFileName.replace(/\.(csv|xlsx|xls)$/i, '').replace(/[_-]+/g, ' ').trim();
+      }
+    }
     const ext = file.name.split('.').pop().toLowerCase();
     try {
       let rows = [];
@@ -821,6 +838,15 @@
 
   document.getElementById('confirmImportBtn').addEventListener('click', () => {
     const count = pendingImportRows.length;
+    if (!state.setupDone) {
+      let name = document.getElementById('className').value.trim();
+      if (!name) {
+        name = pendingImportFileName.replace(/\.(csv|xlsx|xls)$/i, '').replace(/[_-]+/g, ' ').trim();
+      }
+      if (!name) name = 'My Class';
+      state.className = name;
+      state.setupDone = true;
+    }
     let speciesIdx = state.students.length;
     pendingImportRows.forEach(item => {
       let groupId = null;
@@ -844,9 +870,7 @@
     saveState();
     pendingImportRows = [];
     closeModal('importModal');
-    renderDashboard();
-    renderGroups();
-    renderLeaderboard();
+    boot();
     showCelebration(`🎉 ${count} student(s) imported!`);
   });
 
@@ -1279,7 +1303,6 @@
     alert('Class data reset.');
   });
 
-  
   // ---------- Modals ----------
   function closeModal(id) {
     document.getElementById(id).classList.remove('active');
