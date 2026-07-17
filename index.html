@@ -191,6 +191,15 @@
   }
   .species-picker .opt.selected { border-color: var(--teal); }
 
+  .color-picker { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+  .color-picker .swatch {
+    width: 34px; height: 34px; border-radius: 50%; cursor: pointer; border: 3px solid transparent; box-sizing: border-box;
+  }
+  .color-picker .swatch.selected { border-color: var(--navy); }
+  .color-picker .swatch.original {
+    background: conic-gradient(from 0deg, #E74C3C, #E67E22, #F1C40F, #2ECC71, #3498DB, #9B59B6, #FF6B9D, #E74C3C);
+  }
+
   .banner {
     background: #FFF7E6; border: 1px solid #F2CB6C; color: #8A6116; padding: 10px 12px; border-radius: 10px; font-size: 12.5px; margin-bottom: 14px;
   }
@@ -433,7 +442,28 @@
     <input type="text" id="newStudentName" placeholder="e.g. Aisyah">
     <label>Pick a pet</label>
     <div class="species-picker" id="speciesPicker"></div>
+    <label>Pick a color</label>
+    <div class="color-picker" id="colorPicker"></div>
+    <div style="text-align:center; margin-top:12px;">
+      <span id="addPetPreview" style="font-size:48px;"></span>
+    </div>
     <button class="primary" id="confirmAddStudentBtn">Add to class</button>
+  </div>
+</div>
+
+<!-- CUSTOMIZE PET MODAL -->
+<div class="modal-overlay" id="customizePetModal">
+  <div class="modal">
+    <div class="modal-header"><h3>Customize your pet</h3><button class="close-btn" data-close="customizePetModal">&times;</button></div>
+    <p class="muted">Pick your pet's animal and color — make it yours!</p>
+    <label>Pick a pet</label>
+    <div class="species-picker" id="customizeSpeciesPicker"></div>
+    <label>Pick a color</label>
+    <div class="color-picker" id="customizeColorPicker"></div>
+    <div style="text-align:center; margin-top:12px;">
+      <span id="customizePetPreview" style="font-size:48px;"></span>
+    </div>
+    <button class="primary" id="confirmCustomizeBtn">Save my pet</button>
   </div>
 </div>
 
@@ -465,6 +495,7 @@
     <select id="detailGroupSelect"></select>
     <div class="quick-actions" id="quickActions"></div>
     <div class="detail-history" id="detailHistory"></div>
+    <button class="secondary" id="customizePetBtn" style="width:100%; margin-top:10px;">🎨 Customize my pet</button>
     <button class="secondary" id="shareUpdateBtn" style="width:100%; margin-top:10px;">📤 Share update with parent</button>
     <button class="link" id="removeStudentBtn" style="color:var(--bad); margin-top:10px;">Remove this student from class</button>
   </div>
@@ -490,6 +521,37 @@
   const DEFAULT_CRITICAL = -15; // at/below this, pet is "Critical" instead of just "Unwell"
   const STAGE_EMOJIS = ['🥚','🐣','🌱','🍃','🧭','🔭','🏅','🦸','🎖️','🌟','👑'];
   const STAGE_LABELS = ['Egg', 'Lv.1 Hatchling', 'Lv.2 Sprout', 'Lv.3 Nibbler', 'Lv.4 Adventurer', 'Lv.5 Explorer', 'Lv.6 Champion', 'Lv.7 Hero', 'Lv.8 Master', 'Lv.9 Legend', 'Lv.10 Star King'];
+  // Emoji have no built-in color variants, so "color" is a CSS filter tint applied to the pet emoji.
+  const COLOR_PALETTE = [
+    { name: 'Original', filter: 'none', swatch: null },
+    { name: 'Red', filter: 'hue-rotate(-50deg) saturate(1.6)', swatch: '#E74C3C' },
+    { name: 'Orange', filter: 'hue-rotate(-20deg) saturate(1.5) brightness(1.05)', swatch: '#E67E22' },
+    { name: 'Yellow', filter: 'hue-rotate(15deg) saturate(1.6) brightness(1.15)', swatch: '#F1C40F' },
+    { name: 'Green', filter: 'hue-rotate(75deg) saturate(1.4)', swatch: '#2ECC71' },
+    { name: 'Blue', filter: 'hue-rotate(165deg) saturate(1.5)', swatch: '#3498DB' },
+    { name: 'Purple', filter: 'hue-rotate(230deg) saturate(1.4)', swatch: '#9B59B6' },
+    { name: 'Pink', filter: 'hue-rotate(290deg) saturate(1.3) brightness(1.1)', swatch: '#FF6B9D' },
+  ];
+  function colorFilter(colorName) {
+    const c = COLOR_PALETTE.find(c => c.name === colorName);
+    return c ? c.filter : 'none';
+  }
+  function renderColorPicker(containerId, currentColor, onPick) {
+    const picker = document.getElementById(containerId);
+    picker.innerHTML = '';
+    COLOR_PALETTE.forEach(c => {
+      const sw = document.createElement('div');
+      sw.className = 'swatch' + (c.name === 'Original' ? ' original' : '') + (c.name === currentColor ? ' selected' : '');
+      sw.title = c.name;
+      if (c.swatch) sw.style.background = c.swatch;
+      sw.addEventListener('click', () => {
+        onPick(c.name);
+        picker.querySelectorAll('.swatch').forEach(s => s.classList.remove('selected'));
+        sw.classList.add('selected');
+      });
+      picker.appendChild(sw);
+    });
+  }
 
   function loadState() {
     try {
@@ -519,6 +581,7 @@
   if (!state.hallOfFame) state.hallOfFame = [];
   if (!state.groups) state.groups = [];
   state.students.forEach(st => { if (st.groupId === undefined) st.groupId = null; });
+  state.students.forEach(st => { if (!st.color) st.color = 'Original'; });
   // migrate old 5-stage thresholds/labels to the new 11-stage scale if a save predates this update
   if (state.thresholds.length !== STAGE_LABELS.length) {
     state.thresholds = DEFAULT_THRESHOLDS.slice();
@@ -641,7 +704,7 @@
       card.className = 'student-card' + (lvl.stage < 0 ? ' sick' : '');
       card.innerHTML = `
         ${lvl.stage < 0 ? `<div class="sick-badge">${lvl.label.toUpperCase()}</div>` : ''}
-        <div class="pet-emoji">${st.species}${lvl.stage >= 0 ? ' ' + lvl.emoji : ' ' + lvl.emoji}</div>
+        <div class="pet-emoji" style="filter:${colorFilter(st.color)}">${st.species}${lvl.stage >= 0 ? ' ' + lvl.emoji : ' ' + lvl.emoji}</div>
         <div class="name">${escapeHtml(st.name)}</div>
         <div class="level">${lvl.label}</div>
         <div class="points">${pts} pts</div>
@@ -659,6 +722,14 @@
 
   // ---------- Add student ----------
   let selectedSpecies = SPECIES[0];
+  let selectedColor = 'Original';
+
+  function updateAddPreview() {
+    const el = document.getElementById('addPetPreview');
+    el.textContent = selectedSpecies;
+    el.style.filter = colorFilter(selectedColor);
+  }
+
   function openAddStudentModal() {
     const picker = document.getElementById('speciesPicker');
     picker.innerHTML = '';
@@ -670,9 +741,12 @@
         selectedSpecies = sp;
         picker.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
         opt.classList.add('selected');
+        updateAddPreview();
       });
       picker.appendChild(opt);
     });
+    renderColorPicker('colorPicker', selectedColor, (name) => { selectedColor = name; updateAddPreview(); });
+    updateAddPreview();
     document.getElementById('newStudentName').value = '';
     document.getElementById('addStudentModal').classList.add('active');
   }
@@ -682,21 +756,72 @@
     if (!name) { alert('Please enter a student name.'); return; }
     state.students.push({
       id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-      name, species: selectedSpecies, history: [], groupId: null
+      name, species: selectedSpecies, color: selectedColor, history: [], groupId: null
     });
     saveState();
     closeModal('addStudentModal');
     renderDashboard();
-    openCertificate(name, selectedSpecies);
+    openCertificate(name, selectedSpecies, selectedColor);
   });
 
-  function openCertificate(name, species) {
-    document.getElementById('certEmoji').textContent = species + ' 🥚';
+  function openCertificate(name, species, color) {
+    const emojiEl = document.getElementById('certEmoji');
+    emojiEl.textContent = species + ' 🥚';
+    emojiEl.style.filter = colorFilter(color || 'Original');
     document.getElementById('certName').textContent = name;
     document.getElementById('certDate').textContent = 'Adopted on ' + new Date().toLocaleDateString();
     document.getElementById('certModal').classList.add('active');
   }
   document.getElementById('certDoneBtn').addEventListener('click', () => closeModal('certModal'));
+
+  // ---------- Customize pet (species + color) - lets a student (or teacher) restyle an existing pet, e.g. after bulk import ----------
+  let customizeSpecies = SPECIES[0];
+  let customizeColor = 'Original';
+
+  function updateCustomizePreview() {
+    const el = document.getElementById('customizePetPreview');
+    el.textContent = customizeSpecies;
+    el.style.filter = colorFilter(customizeColor);
+  }
+
+  document.getElementById('customizePetBtn').addEventListener('click', () => {
+    const st = state.students.find(s => s.id === currentDetailId);
+    if (!st) return;
+    customizeSpecies = st.species;
+    customizeColor = st.color || 'Original';
+
+    const picker = document.getElementById('customizeSpeciesPicker');
+    picker.innerHTML = '';
+    SPECIES.forEach(sp => {
+      const opt = document.createElement('div');
+      opt.className = 'opt' + (sp === customizeSpecies ? ' selected' : '');
+      opt.textContent = sp;
+      opt.addEventListener('click', () => {
+        customizeSpecies = sp;
+        picker.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        updateCustomizePreview();
+      });
+      picker.appendChild(opt);
+    });
+    renderColorPicker('customizeColorPicker', customizeColor, (name) => { customizeColor = name; updateCustomizePreview(); });
+    updateCustomizePreview();
+    closeModal('detailModal');
+    document.getElementById('customizePetModal').classList.add('active');
+  });
+
+  document.getElementById('confirmCustomizeBtn').addEventListener('click', () => {
+    const st = state.students.find(s => s.id === currentDetailId);
+    if (!st) return;
+    st.species = customizeSpecies;
+    st.color = customizeColor;
+    saveState();
+    closeModal('customizePetModal');
+    renderDashboard();
+    renderLeaderboard();
+    openDetail(st.id);
+    showCelebration(`🎉 ${st.name}'s pet updated!`);
+  });
 
   // ---------- Import roster (Excel/CSV) ----------
   const NAME_COLUMNS = ['name', 'student name', 'student', 'full name'];
@@ -862,6 +987,7 @@
         id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
         name: item.name,
         species: SPECIES[speciesIdx % SPECIES.length],
+        color: 'Original',
         history: [],
         groupId,
       });
@@ -887,7 +1013,9 @@
     const pts = totalPoints(st);
     const lvl = levelFor(pts);
     document.getElementById('detailName').textContent = st.name;
-    document.getElementById('detailEmoji').textContent = st.species + ' ' + lvl.emoji;
+    const detailEmojiEl = document.getElementById('detailEmoji');
+    detailEmojiEl.textContent = st.species + ' ' + lvl.emoji;
+    detailEmojiEl.style.filter = colorFilter(st.color);
     document.getElementById('detailLevel').textContent = lvl.label;
     document.getElementById('detailPoints').textContent = pts + ' points';
 
@@ -976,7 +1104,7 @@
       return `
         <div class="lb-row">
           <div class="lb-rank ${i < 3 ? 'medal' : ''}">${i < 3 ? medals[i] : (i + 1)}</div>
-          <div class="lb-emoji">${r.st.species}${lvl.emoji}</div>
+          <div class="lb-emoji" style="filter:${colorFilter(r.st.color)}">${r.st.species}${lvl.emoji}</div>
           <div class="lb-info">
             <div class="lb-name">${escapeHtml(r.st.name)}</div>
             <div class="lb-level">${lvl.label}</div>
@@ -1115,7 +1243,7 @@
       return `
         <div class="proj-row">
           <div class="proj-rank">${i < 3 ? medals[i] : (i + 1)}</div>
-          <div class="proj-emoji">${r.st.species}${lvl.emoji}</div>
+          <div class="proj-emoji" style="filter:${colorFilter(r.st.color)}">${r.st.species}${lvl.emoji}</div>
           <div>
             <div class="proj-name">${escapeHtml(r.st.name)}</div>
             <div class="proj-level">${lvl.label}</div>
