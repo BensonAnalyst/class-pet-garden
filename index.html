@@ -142,6 +142,8 @@
     position: relative;
   }
   .student-card .pet-emoji { font-size: 40px; line-height: 1; }
+  .pet-egg-wobble { display: inline-block; animation: eggWobble 2.4s ease-in-out infinite; }
+  @keyframes eggWobble { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
   .student-card .name { font-weight: 600; font-size: 14px; margin-top: 6px; }
   .student-card .level { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .student-card .points { font-size: 12px; margin-top: 4px; font-weight: 700; }
@@ -613,6 +615,47 @@
     const c = COLOR_PALETTE.find(c => c.name === colorName);
     return c ? c.filter : 'none';
   }
+
+  // ---------- Pet evolution visuals (Pokemon-inspired MECHANIC only - original emoji-only presentation,
+  // no borrowed character art or branding). Two things create an "it's evolving!" feeling with zero new
+  // art assets: (1) the egg stage hides the species entirely until the pet hatches at stage 1+, so there's
+  // real mystery/anticipation, like an unhatched egg; (2) each stage adds an escalating accent emoji plus
+  // a growing glow and a size bump, so the SAME species visibly looks more elaborate as points climb,
+  // instead of just swapping a small badge next to a static-sized emoji. Used on the dashboard, leaderboard,
+  // detail screen, and projector board - NOT on the adoption certificate, since that moment is intentionally
+  // the opposite (revealing the species you just picked, while it's still an egg).
+  const STAGE_VISUALS = [
+    { accent: '',    glow: 0, scale: 1.00 }, // 0 Egg - species hidden, see petGlyph()
+    { accent: '',    glow: 0, scale: 1.00 }, // 1 Hatchling
+    { accent: '🌱',  glow: 0, scale: 1.05 }, // 2 Sprout
+    { accent: '🍃',  glow: 0, scale: 1.10 }, // 3 Nibbler
+    { accent: '🧭',  glow: 1, scale: 1.15 }, // 4 Adventurer
+    { accent: '🔭',  glow: 1, scale: 1.20 }, // 5 Explorer
+    { accent: '🏅',  glow: 2, scale: 1.25 }, // 6 Champion
+    { accent: '🦸',  glow: 2, scale: 1.30 }, // 7 Hero
+    { accent: '🎖️', glow: 3, scale: 1.35 }, // 8 Master
+    { accent: '🌟',  glow: 3, scale: 1.40 }, // 9 Legend
+    { accent: '👑',  glow: 4, scale: 1.50 }, // 10 Star King
+  ];
+  const GLOW_SHADOWS = [
+    '',
+    'drop-shadow(0 0 3px rgba(15,107,114,0.5))',
+    'drop-shadow(0 0 5px rgba(15,107,114,0.7)) drop-shadow(0 0 10px rgba(15,107,114,0.3))',
+    'drop-shadow(0 0 6px rgba(241,196,15,0.8)) drop-shadow(0 0 12px rgba(241,196,15,0.4))',
+    'drop-shadow(0 0 8px rgba(241,196,15,1)) drop-shadow(0 0 16px rgba(241,196,15,0.6)) drop-shadow(0 0 24px rgba(255,215,0,0.4))',
+  ];
+  function petGlyph(st, lvl) {
+    if (lvl.stage === 0) return { text: '🥚', extraClass: 'pet-egg-wobble', filterExtra: '', scale: 1 };
+    if (lvl.stage < 0) return { text: st.species + ' ' + lvl.emoji, extraClass: '', filterExtra: 'grayscale(0.4) opacity(0.75)', scale: 0.9 };
+    const v = STAGE_VISUALS[lvl.stage] || STAGE_VISUALS[STAGE_VISUALS.length - 1];
+    return { text: v.accent ? `${st.species} ${v.accent}` : st.species, extraClass: '', filterExtra: GLOW_SHADOWS[v.glow] || '', scale: v.scale };
+  }
+  function petGlyphStyle(st, glyph) {
+    const base = colorFilter(st.color);
+    const combined = [base !== 'none' ? base : '', glyph.filterExtra].filter(Boolean).join(' ') || 'none';
+    const transform = glyph.scale !== 1 ? ` transform:scale(${glyph.scale});` : '';
+    return `filter:${combined};${transform}`;
+  }
   function renderColorPicker(containerId, currentColor, onPick) {
     const picker = document.getElementById(containerId);
     picker.innerHTML = '';
@@ -867,11 +910,12 @@
     state.students.forEach(st => {
       const pts = totalPoints(st);
       const lvl = levelFor(pts);
+      const glyph = petGlyph(st, lvl);
       const card = document.createElement('div');
       card.className = 'student-card' + (lvl.stage < 0 ? ' sick' : '');
       card.innerHTML = `
         ${lvl.stage < 0 ? `<div class="sick-badge">${lvl.label.toUpperCase()}</div>` : ''}
-        <div class="pet-emoji" style="filter:${colorFilter(st.color)}">${st.species}${lvl.stage >= 0 ? ' ' + lvl.emoji : ' ' + lvl.emoji}</div>
+        <div class="pet-emoji ${glyph.extraClass}" style="${petGlyphStyle(st, glyph)}">${glyph.text}</div>
         <div class="name">${escapeHtml(st.name)}</div>
         <div class="level">${lvl.label}</div>
         <div class="points">${pts} pts</div>
@@ -1236,8 +1280,10 @@
     const lvl = levelFor(pts);
     document.getElementById('detailName').textContent = st.name;
     const detailEmojiEl = document.getElementById('detailEmoji');
-    detailEmojiEl.textContent = st.species + ' ' + lvl.emoji;
-    detailEmojiEl.style.filter = colorFilter(st.color);
+    const detailGlyph = petGlyph(st, lvl);
+    detailEmojiEl.textContent = detailGlyph.text;
+    detailEmojiEl.className = detailGlyph.extraClass;
+    detailEmojiEl.setAttribute('style', 'font-size:60px;' + petGlyphStyle(st, detailGlyph));
     document.getElementById('detailLevel').textContent = lvl.label;
     document.getElementById('detailPoints').textContent = pts + ' points';
 
@@ -1354,12 +1400,13 @@
     const medals = ['🥇', '🥈', '🥉'];
     wrap.innerHTML = ranked.map((r, i) => {
       const lvl = levelFor(totalPoints(r.st)); // pet stage always reflects lifetime points, not the filtered view
+      const glyph = petGlyph(r.st, lvl);
       const trendClass = r.momentum > 0 ? 'up' : (r.momentum < 0 ? 'down' : 'flat');
       const trendArrow = r.momentum > 0 ? '▲' : (r.momentum < 0 ? '▼' : '—');
       return `
         <div class="lb-row">
           <div class="lb-rank ${i < 3 ? 'medal' : ''}">${i < 3 ? medals[i] : (i + 1)}</div>
-          <div class="lb-emoji" style="filter:${colorFilter(r.st.color)}">${r.st.species}${lvl.emoji}</div>
+          <div class="lb-emoji ${glyph.extraClass}" style="${petGlyphStyle(r.st, glyph)}">${glyph.text}</div>
           <div class="lb-info">
             <div class="lb-name">${escapeHtml(r.st.name)}</div>
             <div class="lb-level">${lvl.label}</div>
@@ -1495,10 +1542,11 @@
     const medals = ['🥇', '🥈', '🥉'];
     board.innerHTML = ranked.map((r, i) => {
       const lvl = levelFor(r.pts);
+      const glyph = petGlyph(r.st, lvl);
       return `
         <div class="proj-row">
           <div class="proj-rank">${i < 3 ? medals[i] : (i + 1)}</div>
-          <div class="proj-emoji" style="filter:${colorFilter(r.st.color)}">${r.st.species}${lvl.emoji}</div>
+          <div class="proj-emoji ${glyph.extraClass}" style="${petGlyphStyle(r.st, glyph)}">${glyph.text}</div>
           <div>
             <div class="proj-name">${escapeHtml(r.st.name)}</div>
             <div class="proj-level">${lvl.label}</div>
