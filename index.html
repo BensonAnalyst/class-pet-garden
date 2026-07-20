@@ -111,10 +111,6 @@
   }
 
   .chip-list { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
-  .group-heading {
-    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); margin: 12px 0 4px;
-  }
-  .group-heading:first-child { margin-top: 0; }
   .chip {
     background: var(--bg);
     border: 1px solid var(--border);
@@ -404,15 +400,12 @@
 
     <div class="card">
       <h2>Point categories</h2>
-      <p class="muted">Add the behaviors you want to track and how many points they're worth. Positive for good behavior, negative for penalties. Grouped by category (e.g. Academic, Behavior) to keep judgment calls consistent.</p>
-      <div id="categoryList"></div>
+      <p class="muted">Add the behaviors you want to track and how many points they're worth. Positive for good behavior, negative for penalties.</p>
+      <div id="categoryList" class="chip-list"></div>
       <div class="row" style="margin-top:12px;">
         <input type="text" id="newCatName" placeholder="e.g. Homework done">
         <input type="number" id="newCatPoints" placeholder="pts" style="max-width:80px;">
       </div>
-      <label>Group</label>
-      <input type="text" id="newCatGroup" placeholder="e.g. Academic" list="catGroupOptions">
-      <datalist id="catGroupOptions"></datalist>
       <button class="primary" id="addCatBtn">Add category</button>
     </div>
 
@@ -537,7 +530,7 @@
     </div>
     <label style="margin-top:14px;">Group</label>
     <select id="detailGroupSelect"></select>
-    <div id="quickActions"></div>
+    <div class="quick-actions" id="quickActions"></div>
     <div class="detail-history" id="detailHistory"></div>
     <button class="secondary" id="customizePetBtn" style="width:100%; margin-top:10px;">🎨 Customize my pet</button>
     <button class="secondary" id="shareUpdateBtn" style="width:100%; margin-top:10px;">📤 Share update with parent</button>
@@ -553,25 +546,12 @@
 (function() {
   const STORAGE_KEY = 'classPetGarden_v1';
   const SPECIES = ['🐱','🐶','🐰','🐼','🐲','🦊','🐨','🐸','🐷','🐹','🐯','🐘','🦄','🐢','🦉','🐧'];
-  // Grouped rubric (Participation / Academic / Citizenship / Behavior) so judgment calls stay consistent
-  // across taps and teachers. Positive categories deliberately outweigh negative ones - the single harshest
-  // penalty (-3) is smaller than the two biggest rewards (+3, +4) combined, so one bad moment shouldn't erase
-  // a student's progress. Each class gets its own independent copy of these (see makeNewClass).
   const DEFAULT_CATEGORIES = [
-    { name: 'Hand raised / participated', points: 2, group: 'Participation & Effort' },
-    { name: 'Stayed focused during independent work', points: 2, group: 'Participation & Effort' },
-    { name: 'Asked a thoughtful question', points: 2, group: 'Participation & Effort' },
-    { name: 'Homework done', points: 3, group: 'Academic' },
-    { name: 'Quiz/test well done', points: 4, group: 'Academic' },
-    { name: 'Improved from last score', points: 3, group: 'Academic' },
-    { name: 'Helped a classmate', points: 3, group: 'Citizenship' },
-    { name: 'Kindness to a classmate', points: 2, group: 'Citizenship' },
-    { name: 'Showed leadership', points: 3, group: 'Citizenship' },
-    { name: 'Cleaned up without being asked', points: 2, group: 'Citizenship' },
-    { name: 'Late to class', points: -2, group: 'Behavior & Conduct' },
-    { name: 'Talking out of turn', points: -2, group: 'Behavior & Conduct' },
-    { name: 'Not following instructions', points: -2, group: 'Behavior & Conduct' },
-    { name: 'Disruptive behavior', points: -3, group: 'Behavior & Conduct' },
+    { name: 'Hand raised / participated', points: 2 },
+    { name: 'Homework done', points: 3 },
+    { name: 'Helped a classmate', points: 3 },
+    { name: 'Late to class', points: -2 },
+    { name: 'Disruptive behavior', points: -5 },
   ];
   // 11-stage progression matching banchong.cn's own level-rules table (Lv.1-10 cumulative energy: 3,6,10,20,35,50,70,90,120,160)
   const DEFAULT_THRESHOLDS = [0, 3, 6, 10, 20, 35, 50, 70, 90, 120, 160];
@@ -621,16 +601,11 @@
   // reference to that active class's object inside appState.classes - mutating state.foo mutates the same
   // object that lives inside appState, so every existing state.X read/write below still works unchanged;
   // only loading, saving, creating, switching, and deleting classes needed new code.
-  function freshCategoryId() {
-    return 'cat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
-  }
   function makeNewClass(name) {
     return {
       id: 'cls_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
       className: name,
-      // .map() (not .slice()) so each class gets its own independent category objects with fresh ids -
-      // sharing object references across classes would mean editing one class's category could corrupt another's.
-      categories: DEFAULT_CATEGORIES.map(c => ({ id: freshCategoryId(), name: c.name, points: c.points, group: c.group })),
+      categories: DEFAULT_CATEGORIES.slice(),
       thresholds: DEFAULT_THRESHOLDS.slice(),
       criticalThreshold: DEFAULT_CRITICAL,
       students: [], // {id, name, species, color, history:[{ts, label, delta}], groupId}
@@ -681,16 +656,6 @@
   }
 
   let appState = loadAppState() || { currentClassId: null, classes: [] };
-  // migrate categories saved before groups/ids existed - give every category a stable id and a group
-  // (defaulting to 'General' so old ungrouped categories still render, just under one catch-all heading)
-  appState.classes.forEach(c => {
-    c.categories = (c.categories || []).map(cat => ({
-      id: cat.id || freshCategoryId(),
-      name: cat.name,
-      points: cat.points,
-      group: cat.group || 'General',
-    }));
-  });
   let state = appState.currentClassId ? (appState.classes.find(c => c.id === appState.currentClassId) || null) : null;
 
   let leaderboardMode = 'individual'; // 'individual' | 'group'
@@ -1203,36 +1168,25 @@
       saveState();
     };
 
-    // Grouped so a teacher scanning mid-class can jump straight to "Academic" or "Behavior & Conduct"
-    // instead of hunting through one long flat row of buttons.
     const qa = document.getElementById('quickActions');
     qa.innerHTML = '';
-    groupCategories(state.categories).forEach(({ group, items }) => {
-      const heading = document.createElement('div');
-      heading.className = 'group-heading';
-      heading.textContent = group;
-      qa.appendChild(heading);
-      const row = document.createElement('div');
-      row.className = 'quick-actions';
-      items.forEach(cat => {
-        const btn = document.createElement('button');
-        btn.className = cat.points >= 0 ? 'pos' : 'neg';
-        btn.textContent = `${cat.name} (${cat.points > 0 ? '+' : ''}${cat.points})`;
-        btn.addEventListener('click', () => {
-          const beforeStage = levelFor(totalPoints(st)).stage;
-          st.history.push({ ts: Date.now(), label: cat.name, delta: cat.points });
-          const afterLvl = levelFor(totalPoints(st));
-          saveState();
-          renderDetail();
-          renderDashboard();
-          if (afterLvl.stage > beforeStage) {
-            showCelebration(`🎉 ${st.name}'s pet leveled up to ${afterLvl.label}!`);
-            playLevelUpSound();
-          }
-        });
-        row.appendChild(btn);
+    state.categories.forEach(cat => {
+      const btn = document.createElement('button');
+      btn.className = cat.points >= 0 ? 'pos' : 'neg';
+      btn.textContent = `${cat.name} (${cat.points > 0 ? '+' : ''}${cat.points})`;
+      btn.addEventListener('click', () => {
+        const beforeStage = levelFor(totalPoints(st)).stage;
+        st.history.push({ ts: Date.now(), label: cat.name, delta: cat.points });
+        const afterLvl = levelFor(totalPoints(st));
+        saveState();
+        renderDetail();
+        renderDashboard();
+        if (afterLvl.stage > beforeStage) {
+          showCelebration(`🎉 ${st.name}'s pet leveled up to ${afterLvl.label}!`);
+          playLevelUpSound();
+        }
       });
-      qa.appendChild(row);
+      qa.appendChild(btn);
     });
 
     const hist = document.getElementById('detailHistory');
@@ -1523,61 +1477,33 @@
     alert('Copy this to share with the parent:\n\n' + text);
   });
 
-  // ---------- Settings: categories (grouped, e.g. Academic / Behavior & Conduct) ----------
-  // Groups exist purely as a `group` string on each category - the display order is just each
-  // group's first-appearance order in state.categories, so no separate group list needs managing.
-  function groupCategories(categories) {
-    const order = [];
-    const byGroup = {};
-    categories.forEach(cat => {
-      const g = cat.group || 'General';
-      if (!byGroup[g]) { byGroup[g] = []; order.push(g); }
-      byGroup[g].push(cat);
-    });
-    return order.map(g => ({ group: g, items: byGroup[g] }));
-  }
+  // ---------- Settings: categories ----------
   function renderCategories() {
     const list = document.getElementById('categoryList');
     list.innerHTML = '';
-    groupCategories(state.categories).forEach(({ group, items }) => {
-      const heading = document.createElement('div');
-      heading.className = 'group-heading';
-      heading.textContent = group;
-      list.appendChild(heading);
-      const chipRow = document.createElement('div');
-      chipRow.className = 'chip-list';
-      items.forEach(cat => {
-        const chip = document.createElement('div');
-        chip.className = 'chip';
-        chip.innerHTML = `<span>${escapeHtml(cat.name)} (${cat.points > 0 ? '+' : ''}${cat.points})</span>`;
-        const rm = document.createElement('button');
-        rm.textContent = '✕';
-        rm.addEventListener('click', () => {
-          state.categories = state.categories.filter(c => c.id !== cat.id);
-          saveState();
-          renderCategories();
-        });
-        chip.appendChild(rm);
-        chipRow.appendChild(chip);
+    state.categories.forEach((cat, idx) => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.innerHTML = `<span>${escapeHtml(cat.name)} (${cat.points > 0 ? '+' : ''}${cat.points})</span>`;
+      const rm = document.createElement('button');
+      rm.textContent = '✕';
+      rm.addEventListener('click', () => {
+        state.categories.splice(idx, 1);
+        saveState();
+        renderCategories();
       });
-      list.appendChild(chipRow);
+      chip.appendChild(rm);
+      list.appendChild(chip);
     });
-
-    // keep the "Group" input's autocomplete list in sync with groups currently in use
-    const datalist = document.getElementById('catGroupOptions');
-    const groupNames = [...new Set(state.categories.map(c => c.group || 'General'))];
-    datalist.innerHTML = groupNames.map(g => `<option value="${escapeHtml(g)}"></option>`).join('');
   }
   document.getElementById('addCatBtn').addEventListener('click', () => {
     const name = document.getElementById('newCatName').value.trim();
     const points = parseInt(document.getElementById('newCatPoints').value, 10);
-    const group = document.getElementById('newCatGroup').value.trim() || 'General';
     if (!name || isNaN(points)) { alert('Enter a name and a point value.'); return; }
-    state.categories.push({ id: freshCategoryId(), name, points, group });
+    state.categories.push({ name, points });
     saveState();
     document.getElementById('newCatName').value = '';
     document.getElementById('newCatPoints').value = '';
-    document.getElementById('newCatGroup').value = '';
     renderCategories();
   });
 
