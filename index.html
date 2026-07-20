@@ -341,6 +341,10 @@
         </div>
       </div>
     </div>
+    <div class="card" style="margin-bottom:10px; padding:10px 16px;">
+      <button class="primary" id="perfectDayBtn" style="margin-top:0;">🌟 Award Perfect Day Bonus (+5)</button>
+      <p class="muted" style="margin:6px 0 0;">Gives +5 to every student who logged at least one point today with zero negative marks. Safe to tap once per day — won't double-award.</p>
+    </div>
     <div id="studentGridWrap"></div>
   </div>
 
@@ -538,6 +542,14 @@
     <label style="margin-top:14px;">Group</label>
     <select id="detailGroupSelect"></select>
     <div id="quickActions"></div>
+    <div style="border-top:1px solid var(--border); margin-top:12px; padding-top:10px;">
+      <label style="margin-top:0;">✏️ Custom point entry (for one-off moments)</label>
+      <div class="row">
+        <input type="text" id="customEventLabel" placeholder="e.g. Helped a substitute teacher">
+        <input type="number" id="customEventPoints" placeholder="pts" style="max-width:70px;">
+      </div>
+      <button class="secondary" id="logCustomEventBtn" style="width:100%; margin-top:8px;">Log it</button>
+    </div>
     <div class="detail-history" id="detailHistory"></div>
     <button class="secondary" id="customizePetBtn" style="width:100%; margin-top:10px;">🎨 Customize my pet</button>
     <button class="secondary" id="shareUpdateBtn" style="width:100%; margin-top:10px;">📤 Share update with parent</button>
@@ -553,25 +565,28 @@
 (function() {
   const STORAGE_KEY = 'classPetGarden_v1';
   const SPECIES = ['🐱','🐶','🐰','🐼','🐲','🦊','🐨','🐸','🐷','🐹','🐯','🐘','🦄','🐢','🦉','🐧'];
-  // Grouped rubric (Participation / Academic / Citizenship / Behavior) so judgment calls stay consistent
-  // across taps and teachers. Positive categories deliberately outweigh negative ones - the single harshest
-  // penalty (-3) is smaller than the two biggest rewards (+3, +4) combined, so one bad moment shouldn't erase
-  // a student's progress. Each class gets its own independent copy of these (see makeNewClass).
+  // Rubric v2 (Benson's expanded classroom rubric) - 5 groups covering collaboration, responsibility/
+  // preparation, creativity, safety, and integrity. The source rubric gave some categories a point RANGE
+  // (e.g. "Active listening (+1 or +2)"); each was collapsed to a single fixed value - the lower end for
+  // deductions (per the rubric's own tip: "keep deductions low, -1 to -3, to avoid a negative feedback
+  // loop") - since the app stores one fixed point value per category. Teachers can still add a custom
+  // category with a different value in Settings, or use the one-off custom point entry on a student's
+  // detail screen for anything outside this list. Each class gets its own independent copy (see makeNewClass).
   const DEFAULT_CATEGORIES = [
-    { name: 'Hand raised / participated', points: 2, group: 'Participation & Effort' },
-    { name: 'Stayed focused during independent work', points: 2, group: 'Participation & Effort' },
-    { name: 'Asked a thoughtful question', points: 2, group: 'Participation & Effort' },
-    { name: 'Homework done', points: 3, group: 'Academic' },
-    { name: 'Quiz/test well done', points: 4, group: 'Academic' },
-    { name: 'Improved from last score', points: 3, group: 'Academic' },
-    { name: 'Helped a classmate', points: 3, group: 'Citizenship' },
-    { name: 'Kindness to a classmate', points: 2, group: 'Citizenship' },
-    { name: 'Showed leadership', points: 3, group: 'Citizenship' },
-    { name: 'Cleaned up without being asked', points: 2, group: 'Citizenship' },
-    { name: 'Late to class', points: -2, group: 'Behavior & Conduct' },
-    { name: 'Talking out of turn', points: -2, group: 'Behavior & Conduct' },
-    { name: 'Not following instructions', points: -2, group: 'Behavior & Conduct' },
-    { name: 'Disruptive behavior', points: -3, group: 'Behavior & Conduct' },
+    { name: 'Active listening / Respecting speaker', points: 1, group: 'Collaboration & Teamwork' },
+    { name: 'Effective group work', points: 2, group: 'Collaboration & Teamwork' },
+    { name: 'Encouraging others', points: 2, group: 'Collaboration & Teamwork' },
+    { name: 'Classroom duty / Job done well', points: 2, group: 'Responsibility & Preparation' },
+    { name: 'Prepared for class', points: 1, group: 'Responsibility & Preparation' },
+    { name: 'Returned signed form / Parent note', points: 1, group: 'Responsibility & Preparation' },
+    { name: 'Creative problem solving', points: 2, group: 'Creativity & Growth Mindset' },
+    { name: 'Perseverance / Resilience', points: 3, group: 'Creativity & Growth Mindset' },
+    { name: 'Unprepared for lesson', points: -1, group: 'Responsibility & Safety' },
+    { name: 'Incomplete / Missing homework', points: -2, group: 'Responsibility & Safety' },
+    { name: 'Unsafe behavior / Rough play', points: -2, group: 'Responsibility & Safety' },
+    { name: 'Off-task on device / Distracted', points: -2, group: 'Respect & Integrity' },
+    { name: 'Dishonesty / Lack of integrity', points: -3, group: 'Respect & Integrity' },
+    { name: 'Misuse of classroom materials', points: -1, group: 'Respect & Integrity' },
   ];
   // 11-stage progression matching banchong.cn's own level-rules table (Lv.1-10 cumulative energy: 3,6,10,20,35,50,70,90,120,160)
   const DEFAULT_THRESHOLDS = [0, 3, 6, 10, 20, 35, 50, 70, 90, 120, 160];
@@ -871,6 +886,37 @@
   function escapeHtml(s) {
     return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   }
+
+  // ---------- Perfect Day bonus (teacher-triggered - the app has no clock-based automation, so "end of
+  // day" is whenever the teacher taps the button). "Today" = local calendar day. A student qualifies if
+  // they have at least one point event logged today and none of today's events are negative - this
+  // deliberately excludes students with zero activity today (e.g. absent) so the bonus rewards a good
+  // day, not an empty one. Idempotent per day: won't award twice even if tapped repeatedly.
+  function todayKey(ts) {
+    return new Date(ts).toDateString();
+  }
+  document.getElementById('perfectDayBtn').addEventListener('click', () => {
+    const today = todayKey(Date.now());
+    let awardedCount = 0;
+    state.students.forEach(st => {
+      const todaysEntries = st.history.filter(h => todayKey(h.ts) === today);
+      if (todaysEntries.length === 0) return;
+      const hasNegativeToday = todaysEntries.some(h => h.delta < 0);
+      const alreadyAwardedToday = todaysEntries.some(h => h.label === 'Perfect Day bonus');
+      if (!hasNegativeToday && !alreadyAwardedToday) {
+        st.history.push({ ts: Date.now(), label: 'Perfect Day bonus', delta: 5 });
+        awardedCount++;
+      }
+    });
+    saveState();
+    renderDashboard();
+    renderLeaderboard();
+    if (awardedCount > 0) {
+      showCelebration(`🌟 Perfect Day bonus awarded to ${awardedCount} student(s)!`);
+    } else {
+      alert('No students qualified yet today (need at least one point logged today, with no negative marks).');
+    }
+  });
 
   // ---------- Add student ----------
   let selectedSpecies = SPECIES[0];
@@ -1253,6 +1299,28 @@
     saveState();
     closeModal('detailModal');
     renderDashboard();
+  });
+
+  // ---------- Custom point entry - a fast escape hatch for one-off moments that aren't in the rubric,
+  // logged directly to history exactly like a quick-action tap (same level-up detection/celebration/sound). ----------
+  document.getElementById('logCustomEventBtn').addEventListener('click', () => {
+    const st = state.students.find(s => s.id === currentDetailId);
+    if (!st) return;
+    const label = document.getElementById('customEventLabel').value.trim();
+    const points = parseInt(document.getElementById('customEventPoints').value, 10);
+    if (!label || isNaN(points)) { alert('Enter a reason and a point value.'); return; }
+    const beforeStage = levelFor(totalPoints(st)).stage;
+    st.history.push({ ts: Date.now(), label, delta: points });
+    const afterLvl = levelFor(totalPoints(st));
+    saveState();
+    document.getElementById('customEventLabel').value = '';
+    document.getElementById('customEventPoints').value = '';
+    renderDetail();
+    renderDashboard();
+    if (afterLvl.stage > beforeStage) {
+      showCelebration(`🎉 ${st.name}'s pet leveled up to ${afterLvl.label}!`);
+      playLevelUpSound();
+    }
   });
 
   // ---------- Leaderboard ----------
