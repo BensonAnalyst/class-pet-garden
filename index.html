@@ -144,6 +144,13 @@
   .student-card .pet-emoji { font-size: 40px; line-height: 1; }
   .pet-egg-wobble { display: inline-block; animation: eggWobble 2.4s ease-in-out infinite; }
   @keyframes eggWobble { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+  /* Evolution tiers - the whole CARD changes look (border/background/glow), not just the emoji, so a
+     grid of students reads as visibly different "forms" at a glance, like a real evolution line. */
+  .student-card.tier-2 { border-color: #2ECC71; background: linear-gradient(180deg, #ffffff, #EFFBF3); }
+  .student-card.tier-3 { border-color: #3498DB; background: linear-gradient(180deg, #ffffff, #EAF5FC); box-shadow: 0 0 0 2px rgba(52,152,219,0.15); }
+  .student-card.tier-4 { border-color: #9B59B6; background: linear-gradient(180deg, #ffffff, #F6EEFB); box-shadow: 0 0 14px rgba(155,89,182,0.4); }
+  .student-card.tier-5 { border-color: #F1C40F; background: linear-gradient(180deg, #FFFDF5, #FFF6D9); box-shadow: 0 0 18px rgba(241,196,15,0.55); animation: tierPulse 1.8s ease-in-out infinite; }
+  @keyframes tierPulse { 0%, 100% { box-shadow: 0 0 12px rgba(241,196,15,0.4); } 50% { box-shadow: 0 0 26px rgba(241,196,15,0.8); } }
   .student-card .name { font-weight: 600; font-size: 14px; margin-top: 6px; }
   .student-card .level { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .student-card .points { font-size: 12px; margin-top: 4px; font-weight: 700; }
@@ -617,42 +624,38 @@
   }
 
   // ---------- Pet evolution visuals (Pokemon-inspired MECHANIC only - original emoji-only presentation,
-  // no borrowed character art or branding). Two things create an "it's evolving!" feeling with zero new
-  // art assets: (1) the egg stage hides the species entirely until the pet hatches at stage 1+, so there's
-  // real mystery/anticipation, like an unhatched egg; (2) each stage adds an escalating accent emoji plus
-  // a growing glow and a size bump, so the SAME species visibly looks more elaborate as points climb,
-  // instead of just swapping a small badge next to a static-sized emoji. Used on the dashboard, leaderboard,
-  // detail screen, and projector board - NOT on the adoption certificate, since that moment is intentionally
-  // the opposite (revealing the species you just picked, while it's still an egg).
-  const STAGE_VISUALS = [
-    { accent: '',    glow: 0, scale: 1.00 }, // 0 Egg - species hidden, see petGlyph()
-    { accent: '',    glow: 0, scale: 1.00 }, // 1 Hatchling
-    { accent: '🌱',  glow: 0, scale: 1.05 }, // 2 Sprout
-    { accent: '🍃',  glow: 0, scale: 1.10 }, // 3 Nibbler
-    { accent: '🧭',  glow: 1, scale: 1.15 }, // 4 Adventurer
-    { accent: '🔭',  glow: 1, scale: 1.20 }, // 5 Explorer
-    { accent: '🏅',  glow: 2, scale: 1.25 }, // 6 Champion
-    { accent: '🦸',  glow: 2, scale: 1.30 }, // 7 Hero
-    { accent: '🎖️', glow: 3, scale: 1.35 }, // 8 Master
-    { accent: '🌟',  glow: 3, scale: 1.40 }, // 9 Legend
-    { accent: '👑',  glow: 4, scale: 1.50 }, // 10 Star King
-  ];
-  const GLOW_SHADOWS = [
-    '',
-    'drop-shadow(0 0 3px rgba(15,107,114,0.5))',
-    'drop-shadow(0 0 5px rgba(15,107,114,0.7)) drop-shadow(0 0 10px rgba(15,107,114,0.3))',
-    'drop-shadow(0 0 6px rgba(241,196,15,0.8)) drop-shadow(0 0 12px rgba(241,196,15,0.4))',
-    'drop-shadow(0 0 8px rgba(241,196,15,1)) drop-shadow(0 0 16px rgba(241,196,15,0.6)) drop-shadow(0 0 24px rgba(255,215,0,0.4))',
+  // no borrowed character art or branding). The 10 point-stages are grouped into 5 dramatically distinct
+  // visual TIERS, not 10 subtle increments - a real evolution line reads as obviously different forms at
+  // a glance, so tier jumps are big (scale nearly doubles from Tier 1 to Tier 5, flanking accent emoji
+  // change completely, and on the dashboard the whole CARD gets a new border/background/glow per tier,
+  // not just the emoji). The egg stage hides the species entirely until hatching, for real mystery.
+  // Used on the dashboard, leaderboard, detail screen, and projector board - NOT on the adoption
+  // certificate, since that moment is intentionally the opposite (revealing the species you just picked).
+  function visualTier(stage) {
+    if (stage <= 1) return 1;  // Egg / Hatchling
+    if (stage <= 3) return 2;  // Sprout / Nibbler
+    if (stage <= 5) return 3;  // Adventurer / Explorer
+    if (stage <= 7) return 4;  // Champion / Hero
+    return 5;                  // Master / Legend / Star King
+  }
+  const TIER_CONFIG = [
+    null,
+    { cardClass: '',       scale: 1.00, before: '',   after: '' },
+    { cardClass: 'tier-2', scale: 1.30, before: '',   after: '🌿' },
+    { cardClass: 'tier-3', scale: 1.60, before: '✨', after: '✨' },
+    { cardClass: 'tier-4', scale: 1.85, before: '🔥', after: '🔥' },
+    { cardClass: 'tier-5', scale: 2.15, before: '👑', after: '⭐' },
   ];
   function petGlyph(st, lvl) {
-    if (lvl.stage === 0) return { text: '🥚', extraClass: 'pet-egg-wobble', filterExtra: '', scale: 1 };
-    if (lvl.stage < 0) return { text: st.species + ' ' + lvl.emoji, extraClass: '', filterExtra: 'grayscale(0.4) opacity(0.75)', scale: 0.9 };
-    const v = STAGE_VISUALS[lvl.stage] || STAGE_VISUALS[STAGE_VISUALS.length - 1];
-    return { text: v.accent ? `${st.species} ${v.accent}` : st.species, extraClass: '', filterExtra: GLOW_SHADOWS[v.glow] || '', scale: v.scale };
+    if (lvl.stage === 0) return { text: '🥚', extraClass: 'pet-egg-wobble', cardClass: '', scale: 1 };
+    if (lvl.stage < 0) return { text: st.species + ' ' + lvl.emoji, extraClass: '', cardClass: '', filterExtra: 'grayscale(0.4) opacity(0.75)', scale: 0.9 };
+    const cfg = TIER_CONFIG[visualTier(lvl.stage)];
+    const text = [cfg.before, st.species, cfg.after].filter(Boolean).join(' ');
+    return { text, extraClass: '', cardClass: cfg.cardClass, scale: cfg.scale };
   }
   function petGlyphStyle(st, glyph) {
     const base = colorFilter(st.color);
-    const combined = [base !== 'none' ? base : '', glyph.filterExtra].filter(Boolean).join(' ') || 'none';
+    const combined = [base !== 'none' ? base : '', glyph.filterExtra || ''].filter(Boolean).join(' ') || 'none';
     const transform = glyph.scale !== 1 ? ` transform:scale(${glyph.scale});` : '';
     return `filter:${combined};${transform}`;
   }
@@ -912,7 +915,7 @@
       const lvl = levelFor(pts);
       const glyph = petGlyph(st, lvl);
       const card = document.createElement('div');
-      card.className = 'student-card' + (lvl.stage < 0 ? ' sick' : '');
+      card.className = 'student-card' + (lvl.stage < 0 ? ' sick' : '') + (glyph.cardClass ? ' ' + glyph.cardClass : '');
       card.innerHTML = `
         ${lvl.stage < 0 ? `<div class="sick-badge">${lvl.label.toUpperCase()}</div>` : ''}
         <div class="pet-emoji ${glyph.extraClass}" style="${petGlyphStyle(st, glyph)}">${glyph.text}</div>
