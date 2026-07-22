@@ -619,31 +619,71 @@
   // id stored on a student is still just an emoji character for backward compatibility with existing
   // saved data - it's used purely as a lookup key into PET_DESIGN_BY_ID, never rendered as literal emoji
   // text for a hatched pet (only the Egg stage still shows the plain 🥚, species stays a mystery till hatch).
+  // 4 elements (fire/water/storm/wind) x 5 body families = 20 species. Element determines the creature's
+  // base color AND its Form-3 elemental effect (flames/waves/lightning/wind-swirls); family determines the
+  // body silhouette. Every species also wears simple armor plating starting at Form 1 (a chest band),
+  // gaining shoulder pads at Form 2 and a full elemental aura + chest gem at Form 3.
+  const ELEMENT_PALETTES = {
+    fire:  { base: '#FF7A45', accent: '#FFD166', dark: '#B23A1A' },
+    water: { base: '#4FA3E3', accent: '#BEE3FF', dark: '#1B5C8C' },
+    storm: { base: '#6B6B9E', accent: '#FFE066', dark: '#302F52' },
+    wind:  { base: '#5FC9C9', accent: '#EAFFFB', dark: '#2E7A7A' },
+  };
   const PET_SPECIES = [
-    { id: '🐱', name: 'Emberkit',     family: 'puff',       palette: { base: '#FF7A45', accent: '#FFD166', dark: '#B23A1A' } },
-    { id: '🐶', name: 'Frostpaw',     family: 'puff',       palette: { base: '#7EC8E3', accent: '#E8F9FF', dark: '#2E6F8E' } },
-    { id: '🐰', name: 'Sparkit',      family: 'puff',       palette: { base: '#FFD93D', accent: '#FFF3B0', dark: '#B8860B' } },
-    { id: '🐼', name: 'Mossbun',      family: 'puff',       palette: { base: '#6FCF6F', accent: '#C6F6C6', dark: '#2E7D32' } },
-    { id: '🐲', name: 'Rubycore',     family: 'shard',      palette: { base: '#FF6B6B', accent: '#FFD1D1', dark: '#C0392B' } },
-    { id: '🦊', name: 'Glaciershard', family: 'shard',      palette: { base: '#6EC6FF', accent: '#D6F3FF', dark: '#1F6FA8' } },
-    { id: '🐨', name: 'Voltgem',      family: 'shard',      palette: { base: '#F5D033', accent: '#FFF6C9', dark: '#B8860B' } },
-    { id: '🐸', name: 'Verdishard',   family: 'shard',      palette: { base: '#6FCF97', accent: '#D4F7E3', dark: '#1E7A4C' } },
-    { id: '🐷', name: 'Tiderill',     family: 'rivulon',    palette: { base: '#4FA3E3', accent: '#BEE3FF', dark: '#1B5C8C' } },
-    { id: '🐹', name: 'Duskoil',      family: 'rivulon',    palette: { base: '#7C6FCF', accent: '#D6CCFF', dark: '#3B2E7A' } },
-    { id: '🐯', name: 'Galewisp',     family: 'rivulon',    palette: { base: '#5FC9C9', accent: '#EFFFFF', dark: '#2E7A7A' } },
-    { id: '🐘', name: 'Thornvine',    family: 'rivulon',    palette: { base: '#8FBF4F', accent: '#E1F2C4', dark: '#4C6B1F' } },
-    { id: '🦄', name: 'Skylume',      family: 'wingtail',   palette: { base: '#FFD97D', accent: '#FFF6DD', dark: '#C99A2E' } },
-    { id: '🐢', name: 'Stormcrest',   family: 'wingtail',   palette: { base: '#8A8FD9', accent: '#DADCFF', dark: '#4A4E9E' } },
-    { id: '🦉', name: 'Emberwing',    family: 'wingtail',   palette: { base: '#FF8A5B', accent: '#FFD9BF', dark: '#C0522A' } },
-    { id: '🐧', name: 'Nightplume',   family: 'wingtail',   palette: { base: '#6B6B9E', accent: '#C7C7E8', dark: '#302F52' } },
-    { id: '🐭', name: 'Stonepup',     family: 'boulderkin', palette: { base: '#B08968', accent: '#E7D2B5', dark: '#6E4F32' } },
-    { id: '🦁', name: 'Ironclad',     family: 'boulderkin', palette: { base: '#9AA7B0', accent: '#E2E8ED', dark: '#4A555C' } },
-    { id: '🐺', name: 'Duneling',     family: 'boulderkin', palette: { base: '#E0B96A', accent: '#FCE9C4', dark: '#A67C2E' } },
-    { id: '🐬', name: 'Coralback',    family: 'boulderkin', palette: { base: '#6FD1C1', accent: '#C9F5EC', dark: '#2E8577' } },
+    { id: '🐱', name: 'Emberkit',    family: 'puff',       element: 'fire' },
+    { id: '🐶', name: 'Tidepup',     family: 'puff',       element: 'water' },
+    { id: '🐰', name: 'Sparkit',     family: 'puff',       element: 'storm' },
+    { id: '🐼', name: 'Gustbun',     family: 'puff',       element: 'wind' },
+    { id: '🐲', name: 'Rubycore',    family: 'shard',      element: 'fire' },
+    { id: '🦊', name: 'Aquashard',   family: 'shard',      element: 'water' },
+    { id: '🐨', name: 'Voltgem',     family: 'shard',      element: 'storm' },
+    { id: '🐸', name: 'Zephyrshard', family: 'shard',      element: 'wind' },
+    { id: '🐷', name: 'Cinderail',   family: 'rivulon',    element: 'fire' },
+    { id: '🐹', name: 'Tiderill',    family: 'rivulon',    element: 'water' },
+    { id: '🐯', name: 'Squallwisp',  family: 'rivulon',    element: 'storm' },
+    { id: '🐘', name: 'Galewisp',    family: 'rivulon',    element: 'wind' },
+    { id: '🦄', name: 'Emberwing',   family: 'wingtail',   element: 'fire' },
+    { id: '🐢', name: 'Mistwing',    family: 'wingtail',   element: 'water' },
+    { id: '🦉', name: 'Stormcrest',  family: 'wingtail',   element: 'storm' },
+    { id: '🐧', name: 'Windplume',   family: 'wingtail',   element: 'wind' },
+    { id: '🐭', name: 'Magmaback',   family: 'boulderkin', element: 'fire' },
+    { id: '🦁', name: 'Coralback',   family: 'boulderkin', element: 'water' },
+    { id: '🐺', name: 'Thunderhide', family: 'boulderkin', element: 'storm' },
+    { id: '🐬', name: 'Duneling',    family: 'boulderkin', element: 'wind' },
   ];
   const SPECIES = PET_SPECIES.map(s => s.id);
   const PET_DESIGN_BY_ID = {};
   PET_SPECIES.forEach(s => { PET_DESIGN_BY_ID[s.id] = s; });
+
+  const ARMOR = '#B8C0C8', ARMOR_DARK = '#6B747C';
+  // Armor band (all forms) + shoulder pads (form 2+) + chest gem & full elemental burst (form 3).
+  function armorAndElement(cx, cy, scale, form, element, gemColor) {
+    let out = `<rect x="${cx - scale * 0.55}" y="${cy + scale * 0.25}" width="${scale * 1.1}" height="${scale * 0.34}" rx="${scale * 0.1}" fill="${ARMOR}" stroke="${ARMOR_DARK}" stroke-width="1.5"/>`;
+    if (form >= 2) {
+      out += `<circle cx="${cx - scale * 0.85}" cy="${cy - scale * 0.05}" r="${scale * 0.22}" fill="${ARMOR}" stroke="${ARMOR_DARK}" stroke-width="1.5"/><circle cx="${cx + scale * 0.85}" cy="${cy - scale * 0.05}" r="${scale * 0.22}" fill="${ARMOR}" stroke="${ARMOR_DARK}" stroke-width="1.5"/>`;
+    }
+    if (form === 3) {
+      out += `<circle cx="${cx}" cy="${cy + scale * 0.42}" r="${scale * 0.14}" fill="${gemColor}" stroke="${ARMOR_DARK}" stroke-width="1"/>`;
+      out += elementFX(element, cx, cy, scale);
+    }
+    return out;
+  }
+  function elementFX(element, cx, cy, r) {
+    if (element === 'fire') {
+      const flame = (fx, fy, s) => `<path d="M ${fx} ${fy} Q ${fx - s * 0.6} ${fy - s} ${fx} ${fy - s * 1.8} Q ${fx + s * 0.7} ${fy - s} ${fx} ${fy} Z" fill="#FF6B35" opacity="0.85"/><path d="M ${fx} ${fy - s * 0.3} Q ${fx - s * 0.3} ${fy - s * 0.9} ${fx} ${fy - s * 1.3} Q ${fx + s * 0.35} ${fy - s * 0.9} ${fx} ${fy - s * 0.3} Z" fill="#FFD166" opacity="0.9"/>`;
+      return flame(cx - r * 1.15, cy + r * 0.2, r * 0.5) + flame(cx + r * 1.15, cy + r * 0.2, r * 0.5) + flame(cx, cy - r * 1.35, r * 0.55);
+    }
+    if (element === 'water') {
+      const drop = (fx, fy, s) => `<path d="M ${fx} ${fy - s} Q ${fx + s * 0.7} ${fy} ${fx} ${fy + s} Q ${fx - s * 0.7} ${fy} ${fx} ${fy - s} Z" fill="#4FA3E3" opacity="0.75"/>`;
+      return drop(cx - r * 1.2, cy, r * 0.4) + drop(cx + r * 1.2, cy - r * 0.2, r * 0.34) + drop(cx, cy - r * 1.3, r * 0.4) + `<path d="M ${cx - r * 1.4} ${cy + r * 0.95} Q ${cx} ${cy + r * 0.65} ${cx + r * 1.4} ${cy + r * 0.95}" stroke="#BEE3FF" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.8"/>`;
+    }
+    if (element === 'storm') {
+      const bolt = (fx, fy, s) => `<polygon points="${fx},${fy - s} ${fx - s * 0.3},${fy} ${fx + s * 0.1},${fy} ${fx - s * 0.15},${fy + s} ${fx + s * 0.35},${fy - s * 0.1} ${fx},${fy - s * 0.1}" fill="#FFE066" opacity="0.9"/>`;
+      return `<ellipse cx="${cx}" cy="${cy - r * 1.35}" rx="${r * 0.9}" ry="${r * 0.3}" fill="#6B6B9E" opacity="0.55"/>` + bolt(cx - r * 0.9, cy - r * 0.5, r * 0.55) + bolt(cx + r * 0.95, cy + r * 0.1, r * 0.5);
+    }
+    const swirl = (fx, fy, s, dir) => `<path d="M ${fx} ${fy} Q ${fx + dir * s} ${fy - s * 0.6} ${fx + dir * s * 1.6} ${fy} Q ${fx + dir * s * 2.1} ${fy + s * 0.5} ${fx + dir * s * 1.4} ${fy + s * 0.7}" stroke="#8FE3D6" stroke-width="3.5" fill="none" stroke-linecap="round" opacity="0.85"/>`;
+    return swirl(cx - r * 1.35, cy - r * 0.3, r * 0.55, 1) + swirl(cx + r * 0.35, cy - r * 1.2, r * 0.5, -1) + swirl(cx - r * 1.1, cy + r * 0.95, r * 0.45, 1);
+  }
 
   // Form 1 = baby/basic, Form 2 = mid-evolution, Form 3 = final evolution. Mapped from the existing
   // 11-stage point progression so no threshold/level logic elsewhere needs to change.
@@ -656,7 +696,7 @@
   // Each "family" function draws one species' silhouette at a given form (1-3) using only basic SVG
   // primitives - circles, paths, polygons. FORM drives real shape changes (new ears, tails, wings, spikes,
   // crowns get added), so evolving reads as a genuine transformation, not the same icon getting bigger.
-  function puffSVG(p, form) {
+  function puffSVG(p, form, element) {
     const bodyR = form === 1 ? 22 : form === 2 ? 28 : 34;
     const cx = 60, cy = form === 1 ? 68 : form === 2 ? 64 : 60;
     const earR = form === 1 ? 7 : form === 2 ? 9 : 11;
@@ -683,9 +723,10 @@
       <circle cx="${cx - 9}" cy="${cy - 2}" r="${eyeR}" fill="${p.dark}"/>
       <circle cx="${cx + 9}" cy="${cy - 2}" r="${eyeR}" fill="${p.dark}"/>
       <path d="M ${cx - 5} ${cy + 8} Q ${cx} ${cy + 12} ${cx + 5} ${cy + 8}" stroke="${p.dark}" stroke-width="2" fill="none" stroke-linecap="round"/>
+      ${armorAndElement(cx, cy, bodyR, form, element, p.accent)}
     </svg>`;
   }
-  function shardSVG(p, form) {
+  function shardSVG(p, form, element) {
     const s = form === 1 ? 18 : form === 2 ? 24 : 30;
     const cx = 60, cy = 62;
     const mainPts = `${cx},${cy - s} ${cx + s * 0.7},${cy - s * 0.2} ${cx + s * 0.5},${cy + s} ${cx - s * 0.5},${cy + s} ${cx - s * 0.7},${cy - s * 0.2}`;
@@ -705,9 +746,10 @@
       ${glowCore}
       <circle cx="${cx - 8}" cy="${cy}" r="${eyeR}" fill="${p.dark}"/>
       <circle cx="${cx + 8}" cy="${cy}" r="${eyeR}" fill="${p.dark}"/>
+      ${armorAndElement(cx, cy, s, form, element, p.accent)}
     </svg>`;
   }
-  function rivulonSVG(p, form) {
+  function rivulonSVG(p, form, element) {
     const len = form === 1 ? 50 : form === 2 ? 66 : 82;
     const amp = form === 1 ? 10 : form === 2 ? 14 : 18;
     const cx = 60, cy = 64;
@@ -726,9 +768,10 @@
       ${finRidge}${whiskers}
       <circle cx="${headX}" cy="${cy}" r="${headR}" fill="${p.base}"/>
       <circle cx="${headX + 3}" cy="${cy - 3}" r="${form === 1 ? 2.6 : form === 2 ? 3 : 3.6}" fill="${p.dark}"/>
+      ${armorAndElement(headX - headR * 0.3, cy, headR * 1.6, form, element, p.accent)}
     </svg>`;
   }
-  function wingtailSVG(p, form) {
+  function wingtailSVG(p, form, element) {
     const bodyR = form === 1 ? 18 : form === 2 ? 23 : 27;
     const cx = 54, cy = 66;
     const wingSize = form === 1 ? 0 : form === 2 ? 26 : 42;
@@ -745,9 +788,10 @@
       <circle cx="${cx}" cy="${cy}" r="${bodyR}" fill="${p.base}"/>
       <polygon points="${cx + bodyR - 2},${cy} ${cx + bodyR + 10},${cy - 3} ${cx + bodyR + 10},${cy + 3}" fill="${p.dark}"/>
       <circle cx="${cx + 4}" cy="${cy - 4}" r="${eyeR}" fill="${p.dark}"/>
+      ${armorAndElement(cx, cy, bodyR, form, element, p.accent)}
     </svg>`;
   }
-  function boulderkinSVG(p, form) {
+  function boulderkinSVG(p, form, element) {
     const s = form === 1 ? 20 : form === 2 ? 26 : 32;
     const cx = 60, cy = 64;
     const plateLines = form >= 2 ? `<line x1="${cx - s}" y1="${cy}" x2="${cx + s}" y2="${cy}" stroke="${p.dark}" stroke-width="2" opacity="0.4"/>` : '';
@@ -765,12 +809,14 @@
       <rect x="${cx - rx * 0.5}" y="${cy - ry * 0.35}" width="${rx}" height="${ry * 0.5}" rx="4" fill="${p.accent}" opacity="0.85"/>
       <circle cx="${cx - 8}" cy="${cy - 4}" r="${form === 1 ? 3 : form === 2 ? 3.4 : 4}" fill="${p.dark}"/>
       <circle cx="${cx + 8}" cy="${cy - 4}" r="${form === 1 ? 3 : form === 2 ? 3.4 : 4}" fill="${p.dark}"/>
+      ${armorAndElement(cx, cy, s, form, element, p.accent)}
     </svg>`;
   }
   const FAMILY_RENDERERS = { puff: puffSVG, shard: shardSVG, rivulon: rivulonSVG, wingtail: wingtailSVG, boulderkin: boulderkinSVG };
   function renderPetArt(speciesId, form) {
     const design = PET_DESIGN_BY_ID[speciesId] || PET_SPECIES[0];
-    return FAMILY_RENDERERS[design.family](design.palette, form);
+    const palette = ELEMENT_PALETTES[design.element];
+    return FAMILY_RENDERERS[design.family](palette, form, design.element);
   }
   // Rubric v2 (Benson's expanded classroom rubric) - 5 groups covering collaboration, responsibility/
   // preparation, creativity, safety, and integrity. The source rubric gave some categories a point RANGE
