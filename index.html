@@ -144,6 +144,15 @@
   .student-card .pet-emoji { font-size: 40px; line-height: 1; }
   .pet-egg-wobble { display: inline-block; animation: eggWobble 2.4s ease-in-out infinite; }
   @keyframes eggWobble { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+  /* Power aura - an original, hand-drawn SVG emblem layered behind the pet emoji. Since emoji can't be
+     redrawn to look "stronger", the aura (not the emoji's size) carries the evolution feeling: a plain
+     circle of leaves, then a jagged energy ring, then wings, then a full radiant crest - each tier is a
+     different SHAPE and color, not just a bigger version of the last one. */
+  .pet-visual-wrap { position: relative; display: inline-flex; align-items: center; justify-content: center; }
+  .pet-visual-wrap .pet-aura { position: absolute; width: 78px; height: 78px; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 0; }
+  .pet-visual-wrap .pet-emoji { position: relative; z-index: 1; }
+  .detail-visual-wrap { width: 100%; }
+  .detail-visual-wrap .pet-aura { width: 150px; height: 150px; }
   /* Evolution tiers - the whole CARD changes look (border/background/glow), not just the emoji, so a
      grid of students reads as visibly different "forms" at a glance, like a real evolution line. */
   .student-card.tier-2 { border-color: #2ECC71; background: linear-gradient(180deg, #ffffff, #EFFBF3); }
@@ -544,7 +553,9 @@
   <div class="modal">
     <div class="modal-header"><h3 id="detailName">Student</h3><button class="close-btn" data-close="detailModal">&times;</button></div>
     <div style="text-align:center;">
-      <div id="detailEmoji" style="font-size:60px;"></div>
+      <div class="pet-visual-wrap detail-visual-wrap" id="detailVisualWrap">
+        <div id="detailEmoji" style="font-size:60px;"></div>
+      </div>
       <div id="detailLevel" class="muted"></div>
       <div id="detailPoints" style="font-weight:700; font-size:18px; margin-top:4px;"></div>
     </div>
@@ -623,14 +634,16 @@
     return c ? c.filter : 'none';
   }
 
-  // ---------- Pet evolution visuals (Pokemon-inspired MECHANIC only - original emoji-only presentation,
-  // no borrowed character art or branding). The 10 point-stages are grouped into 5 dramatically distinct
-  // visual TIERS, not 10 subtle increments - a real evolution line reads as obviously different forms at
-  // a glance, so tier jumps are big (scale nearly doubles from Tier 1 to Tier 5, flanking accent emoji
-  // change completely, and on the dashboard the whole CARD gets a new border/background/glow per tier,
-  // not just the emoji). The egg stage hides the species entirely until hatching, for real mystery.
-  // Used on the dashboard, leaderboard, detail screen, and projector board - NOT on the adoption
-  // certificate, since that moment is intentionally the opposite (revealing the species you just picked).
+  // ---------- Pet evolution visuals (Pokemon-inspired MECHANIC only - fully original presentation, no
+  // borrowed character art or branding). The species emoji itself never changes shape or gets bigger -
+  // emoji can't be redrawn, so scaling one up just makes a bigger animal, not a stronger-looking one.
+  // Instead, an original hand-coded SVG "power aura" layers BEHIND the pet and gets visibly more elaborate
+  // per tier: a ring of leaves, then a jagged energy ring, then wings, then a full radiant crest - each
+  // tier is a different shape and color, which is what actually reads as "leveled up" at a glance. The
+  // egg stage hides the species entirely until hatching, for real mystery. Aura appears on the dashboard
+  // and student detail screen (the two "look at my pet" moments); the leaderboard/projector keep the
+  // compact species+stage-badge format since there's no room for aura art at that size, and the adoption
+  // certificate is untouched (it intentionally reveals the species you just picked, aura or not).
   function visualTier(stage) {
     if (stage <= 1) return 1;  // Egg / Hatchling
     if (stage <= 3) return 2;  // Sprout / Nibbler
@@ -640,18 +653,56 @@
   }
   const TIER_CONFIG = [
     null,
-    { cardClass: '',       scale: 1.00, before: '',   after: '' },
-    { cardClass: 'tier-2', scale: 1.30, before: '',   after: '🌿' },
-    { cardClass: 'tier-3', scale: 1.60, before: '✨', after: '✨' },
-    { cardClass: 'tier-4', scale: 1.85, before: '🔥', after: '🔥' },
-    { cardClass: 'tier-5', scale: 2.15, before: '👑', after: '⭐' },
+    { cardClass: '',       scale: 1.00 }, // 1 Egg/Hatchling - no aura
+    { cardClass: 'tier-2', scale: 1.00 }, // 2 Sprout/Nibbler - vine ring
+    { cardClass: 'tier-3', scale: 1.00 }, // 3 Adventurer/Explorer - energy ring
+    { cardClass: 'tier-4', scale: 1.00 }, // 4 Champion/Hero - + wings
+    { cardClass: 'tier-5', scale: 1.00 }, // 5 Master/Legend/Star King - + crest, gold
   ];
+  function starPoints(cx, cy, spikes, outerR, innerR) {
+    const step = Math.PI / spikes;
+    const pts = [];
+    for (let i = 0; i < spikes * 2; i++) {
+      const r = i % 2 === 0 ? outerR : innerR;
+      const angle = i * step - Math.PI / 2;
+      pts.push(`${(cx + Math.cos(angle) * r).toFixed(1)},${(cy + Math.sin(angle) * r).toFixed(1)}`);
+    }
+    return pts.join(' ');
+  }
+  function wingPath(c, side) {
+    const dir = side === 'left' ? -1 : 1;
+    return `M ${c + dir*38},${c - 2} Q ${c + dir*54},${c - 22} ${c + dir*40},${c - 32} Q ${c + dir*30},${c - 14} ${c + dir*24},${c - 2} Z`;
+  }
+  function powerAuraSvg(tier) {
+    const size = 100, c = size / 2;
+    if (tier <= 1) return '';
+    if (tier === 2) {
+      let leaves = '';
+      for (let i = 0; i < 6; i++) {
+        const angle = (i / 6) * Math.PI * 2;
+        const lx = c + Math.cos(angle) * 34, ly = c + Math.sin(angle) * 34;
+        leaves += `<circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="4.5" fill="#2ECC71" opacity="0.85"/>`;
+      }
+      return `<svg class="pet-aura" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><circle cx="${c}" cy="${c}" r="32" fill="none" stroke="#2ECC71" stroke-width="2.5" stroke-dasharray="4 5" opacity="0.7"/>${leaves}</svg>`;
+    }
+    if (tier === 3) {
+      const pts = starPoints(c, c, 8, 36, 26);
+      return `<svg class="pet-aura" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><polygon points="${pts}" fill="#3498DB" opacity="0.22"/><polygon points="${pts}" fill="none" stroke="#3498DB" stroke-width="2" opacity="0.6"/></svg>`;
+    }
+    if (tier === 4) {
+      const pts = starPoints(c, c, 8, 38, 27);
+      return `<svg class="pet-aura" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><path d="${wingPath(c,'left')}" fill="#9B59B6" opacity="0.75"/><path d="${wingPath(c,'right')}" fill="#9B59B6" opacity="0.75"/><polygon points="${pts}" fill="#9B59B6" opacity="0.18"/><polygon points="${pts}" fill="none" stroke="#9B59B6" stroke-width="2" opacity="0.65"/></svg>`;
+    }
+    const pts = starPoints(c, c, 12, 40, 28);
+    const crestPts = starPoints(c, c - 34, 3, 11, 4.5);
+    return `<svg class="pet-aura" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="goldGrad-${tier}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFE59A"/><stop offset="100%" stop-color="#F1C40F"/></linearGradient></defs><path d="${wingPath(c,'left')}" fill="url(#goldGrad-${tier})" opacity="0.9"/><path d="${wingPath(c,'right')}" fill="url(#goldGrad-${tier})" opacity="0.9"/><polygon points="${pts}" fill="url(#goldGrad-${tier})" opacity="0.28"/><polygon points="${pts}" fill="none" stroke="#F1C40F" stroke-width="2.5" opacity="0.8"/><polygon points="${crestPts}" fill="#F1C40F" opacity="0.95"/></svg>`;
+  }
   function petGlyph(st, lvl) {
-    if (lvl.stage === 0) return { text: '🥚', extraClass: 'pet-egg-wobble', cardClass: '', scale: 1 };
-    if (lvl.stage < 0) return { text: st.species + ' ' + lvl.emoji, extraClass: '', cardClass: '', filterExtra: 'grayscale(0.4) opacity(0.75)', scale: 0.9 };
-    const cfg = TIER_CONFIG[visualTier(lvl.stage)];
-    const text = [cfg.before, st.species, cfg.after].filter(Boolean).join(' ');
-    return { text, extraClass: '', cardClass: cfg.cardClass, scale: cfg.scale };
+    if (lvl.stage === 0) return { text: '🥚', extraClass: 'pet-egg-wobble', cardClass: '', scale: 1, aura: '' };
+    if (lvl.stage < 0) return { text: st.species + ' ' + lvl.emoji, extraClass: '', cardClass: '', filterExtra: 'grayscale(0.4) opacity(0.75)', scale: 0.9, aura: '' };
+    const tier = visualTier(lvl.stage);
+    const cfg = TIER_CONFIG[tier];
+    return { text: st.species, extraClass: '', cardClass: cfg.cardClass, scale: cfg.scale, aura: powerAuraSvg(tier) };
   }
   function petGlyphStyle(st, glyph) {
     const base = colorFilter(st.color);
@@ -918,7 +969,10 @@
       card.className = 'student-card' + (lvl.stage < 0 ? ' sick' : '') + (glyph.cardClass ? ' ' + glyph.cardClass : '');
       card.innerHTML = `
         ${lvl.stage < 0 ? `<div class="sick-badge">${lvl.label.toUpperCase()}</div>` : ''}
-        <div class="pet-emoji ${glyph.extraClass}" style="${petGlyphStyle(st, glyph)}">${glyph.text}</div>
+        <div class="pet-visual-wrap">
+          ${glyph.aura || ''}
+          <div class="pet-emoji ${glyph.extraClass}" style="${petGlyphStyle(st, glyph)}">${glyph.text}</div>
+        </div>
         <div class="name">${escapeHtml(st.name)}</div>
         <div class="level">${lvl.label}</div>
         <div class="points">${pts} pts</div>
@@ -1287,6 +1341,10 @@
     detailEmojiEl.textContent = detailGlyph.text;
     detailEmojiEl.className = detailGlyph.extraClass;
     detailEmojiEl.setAttribute('style', 'font-size:60px;' + petGlyphStyle(st, detailGlyph));
+    const detailWrap = document.getElementById('detailVisualWrap');
+    const oldAura = detailWrap.querySelector('svg.pet-aura');
+    if (oldAura) oldAura.remove();
+    if (detailGlyph.aura) detailWrap.insertAdjacentHTML('afterbegin', detailGlyph.aura);
     document.getElementById('detailLevel').textContent = lvl.label;
     document.getElementById('detailPoints').textContent = pts + ' points';
 
@@ -1403,13 +1461,14 @@
     const medals = ['🥇', '🥈', '🥉'];
     wrap.innerHTML = ranked.map((r, i) => {
       const lvl = levelFor(totalPoints(r.st)); // pet stage always reflects lifetime points, not the filtered view
-      const glyph = petGlyph(r.st, lvl);
+      // Compact species+stage-badge (not the full aura) - leaderboard rows are too small for aura art.
+      const lbText = lvl.stage === 0 ? '🥚' : `${r.st.species}${lvl.emoji}`;
       const trendClass = r.momentum > 0 ? 'up' : (r.momentum < 0 ? 'down' : 'flat');
       const trendArrow = r.momentum > 0 ? '▲' : (r.momentum < 0 ? '▼' : '—');
       return `
         <div class="lb-row">
           <div class="lb-rank ${i < 3 ? 'medal' : ''}">${i < 3 ? medals[i] : (i + 1)}</div>
-          <div class="lb-emoji ${glyph.extraClass}" style="${petGlyphStyle(r.st, glyph)}">${glyph.text}</div>
+          <div class="lb-emoji" style="filter:${colorFilter(r.st.color)}">${lbText}</div>
           <div class="lb-info">
             <div class="lb-name">${escapeHtml(r.st.name)}</div>
             <div class="lb-level">${lvl.label}</div>
@@ -1545,11 +1604,11 @@
     const medals = ['🥇', '🥈', '🥉'];
     board.innerHTML = ranked.map((r, i) => {
       const lvl = levelFor(r.pts);
-      const glyph = petGlyph(r.st, lvl);
+      const projText = lvl.stage === 0 ? '🥚' : `${r.st.species}${lvl.emoji}`;
       return `
         <div class="proj-row">
           <div class="proj-rank">${i < 3 ? medals[i] : (i + 1)}</div>
-          <div class="proj-emoji ${glyph.extraClass}" style="${petGlyphStyle(r.st, glyph)}">${glyph.text}</div>
+          <div class="proj-emoji" style="filter:${colorFilter(r.st.color)}">${projText}</div>
           <div>
             <div class="proj-name">${escapeHtml(r.st.name)}</div>
             <div class="proj-level">${lvl.label}</div>
