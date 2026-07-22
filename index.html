@@ -151,6 +151,11 @@
   .pet-visual-wrap { position: relative; display: inline-flex; align-items: center; justify-content: center; }
   .pet-visual-wrap .pet-aura { position: absolute; width: 78px; height: 78px; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 0; }
   .pet-visual-wrap .pet-emoji { position: relative; z-index: 1; }
+  /* Wraps every rendered creature SVG so it always fills exactly the font-size of whatever context it's
+     dropped into (card, leaderboard row, projector, pickers) - one rule handles sizing everywhere instead
+     of a bespoke width/height per usage site. */
+  .pet-art-box { display: inline-block; width: 1em; height: 1em; vertical-align: middle; }
+  .pet-art-box svg { width: 100%; height: 100%; display: block; }
   .detail-visual-wrap { width: 100%; }
   .detail-visual-wrap .pet-aura { width: 150px; height: 150px; }
   /* Evolution tiers - the whole CARD changes look (border/background/glow), not just the emoji, so a
@@ -605,7 +610,168 @@
 <script>
 (function() {
   const STORAGE_KEY = 'classPetGarden_v1';
-  const SPECIES = ['🐱','🐶','🐰','🐼','🐲','🦊','🐨','🐸','🐷','🐹','🐯','🐘','🦄','🐢','🦉','🐧'];
+
+  // ---------- Pet species & evolution art (fully original geometric/vector designs - NOT based on any
+  // existing game or franchise). 20 species across 5 "body families" (Puffling/Shardling/Rivulon/
+  // Wingtail/Boulderkin), each with its own name and color palette. Every species evolves through 3
+  // visually distinct FORMS as points grow - the silhouette itself changes (new ears/wings/spikes/tails/
+  // crests get added and the body grows), not just a bigger/glowier version of the same icon. The species
+  // id stored on a student is still just an emoji character for backward compatibility with existing
+  // saved data - it's used purely as a lookup key into PET_DESIGN_BY_ID, never rendered as literal emoji
+  // text for a hatched pet (only the Egg stage still shows the plain 🥚, species stays a mystery till hatch).
+  const PET_SPECIES = [
+    { id: '🐱', name: 'Emberkit',     family: 'puff',       palette: { base: '#FF7A45', accent: '#FFD166', dark: '#B23A1A' } },
+    { id: '🐶', name: 'Frostpaw',     family: 'puff',       palette: { base: '#7EC8E3', accent: '#E8F9FF', dark: '#2E6F8E' } },
+    { id: '🐰', name: 'Sparkit',      family: 'puff',       palette: { base: '#FFD93D', accent: '#FFF3B0', dark: '#B8860B' } },
+    { id: '🐼', name: 'Mossbun',      family: 'puff',       palette: { base: '#6FCF6F', accent: '#C6F6C6', dark: '#2E7D32' } },
+    { id: '🐲', name: 'Rubycore',     family: 'shard',      palette: { base: '#FF6B6B', accent: '#FFD1D1', dark: '#C0392B' } },
+    { id: '🦊', name: 'Glaciershard', family: 'shard',      palette: { base: '#6EC6FF', accent: '#D6F3FF', dark: '#1F6FA8' } },
+    { id: '🐨', name: 'Voltgem',      family: 'shard',      palette: { base: '#F5D033', accent: '#FFF6C9', dark: '#B8860B' } },
+    { id: '🐸', name: 'Verdishard',   family: 'shard',      palette: { base: '#6FCF97', accent: '#D4F7E3', dark: '#1E7A4C' } },
+    { id: '🐷', name: 'Tiderill',     family: 'rivulon',    palette: { base: '#4FA3E3', accent: '#BEE3FF', dark: '#1B5C8C' } },
+    { id: '🐹', name: 'Duskoil',      family: 'rivulon',    palette: { base: '#7C6FCF', accent: '#D6CCFF', dark: '#3B2E7A' } },
+    { id: '🐯', name: 'Galewisp',     family: 'rivulon',    palette: { base: '#5FC9C9', accent: '#EFFFFF', dark: '#2E7A7A' } },
+    { id: '🐘', name: 'Thornvine',    family: 'rivulon',    palette: { base: '#8FBF4F', accent: '#E1F2C4', dark: '#4C6B1F' } },
+    { id: '🦄', name: 'Skylume',      family: 'wingtail',   palette: { base: '#FFD97D', accent: '#FFF6DD', dark: '#C99A2E' } },
+    { id: '🐢', name: 'Stormcrest',   family: 'wingtail',   palette: { base: '#8A8FD9', accent: '#DADCFF', dark: '#4A4E9E' } },
+    { id: '🦉', name: 'Emberwing',    family: 'wingtail',   palette: { base: '#FF8A5B', accent: '#FFD9BF', dark: '#C0522A' } },
+    { id: '🐧', name: 'Nightplume',   family: 'wingtail',   palette: { base: '#6B6B9E', accent: '#C7C7E8', dark: '#302F52' } },
+    { id: '🐭', name: 'Stonepup',     family: 'boulderkin', palette: { base: '#B08968', accent: '#E7D2B5', dark: '#6E4F32' } },
+    { id: '🦁', name: 'Ironclad',     family: 'boulderkin', palette: { base: '#9AA7B0', accent: '#E2E8ED', dark: '#4A555C' } },
+    { id: '🐺', name: 'Duneling',     family: 'boulderkin', palette: { base: '#E0B96A', accent: '#FCE9C4', dark: '#A67C2E' } },
+    { id: '🐬', name: 'Coralback',    family: 'boulderkin', palette: { base: '#6FD1C1', accent: '#C9F5EC', dark: '#2E8577' } },
+  ];
+  const SPECIES = PET_SPECIES.map(s => s.id);
+  const PET_DESIGN_BY_ID = {};
+  PET_SPECIES.forEach(s => { PET_DESIGN_BY_ID[s.id] = s; });
+
+  // Form 1 = baby/basic, Form 2 = mid-evolution, Form 3 = final evolution. Mapped from the existing
+  // 11-stage point progression so no threshold/level logic elsewhere needs to change.
+  function formLevelFor(stage) {
+    if (stage <= 3) return 1;
+    if (stage <= 7) return 2;
+    return 3;
+  }
+
+  // Each "family" function draws one species' silhouette at a given form (1-3) using only basic SVG
+  // primitives - circles, paths, polygons. FORM drives real shape changes (new ears, tails, wings, spikes,
+  // crowns get added), so evolving reads as a genuine transformation, not the same icon getting bigger.
+  function puffSVG(p, form) {
+    const bodyR = form === 1 ? 22 : form === 2 ? 28 : 34;
+    const cx = 60, cy = form === 1 ? 68 : form === 2 ? 64 : 60;
+    const earR = form === 1 ? 7 : form === 2 ? 9 : 11;
+    const earY = cy - bodyR - earR * 0.6;
+    const ear = (ex) => form === 1
+      ? `<circle cx="${ex}" cy="${earY}" r="${earR}" fill="${p.base}"/>`
+      : `<path d="M ${ex - earR} ${earY + earR} Q ${ex} ${earY - earR * 1.6} ${ex + earR} ${earY + earR} Z" fill="${p.base}"/>`;
+    const tail = form === 1 ? '' : form === 2
+      ? `<path d="M ${cx + bodyR - 4} ${cy + bodyR - 6} Q ${cx + bodyR + 18} ${cy + bodyR + 2} ${cx + bodyR + 10} ${cy + bodyR - 16}" stroke="${p.dark}" stroke-width="6" fill="none" stroke-linecap="round"/>`
+      : `<path d="M ${cx + bodyR - 2} ${cy + bodyR - 10} Q ${cx + bodyR + 32} ${cy + bodyR + 6} ${cx + bodyR + 16} ${cy + bodyR - 30}" stroke="${p.accent}" stroke-width="9" fill="none" stroke-linecap="round"/><circle cx="${cx + bodyR + 16}" cy="${cy + bodyR - 30}" r="6" fill="${p.dark}"/>`;
+    const furCrown = form === 3 ? Array.from({ length: 7 }).map((_, i) => {
+      const ang = (i / 6) * Math.PI - Math.PI / 2 - 0.35;
+      const x1 = cx + Math.cos(ang) * (bodyR - 4), y1 = cy + Math.sin(ang) * (bodyR - 4) - 2;
+      const x2 = cx + Math.cos(ang) * (bodyR + 14), y2 = cy + Math.sin(ang) * (bodyR + 14) - 2;
+      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${p.accent}" stroke-width="4" stroke-linecap="round"/>`;
+    }).join('') : '';
+    const eyeR = form === 1 ? 3.2 : form === 2 ? 3.6 : 4.2;
+    const eyeGlow = form === 3 ? `<circle cx="${cx - 9}" cy="${cy - 2}" r="${eyeR + 3}" fill="${p.accent}" opacity="0.35"/><circle cx="${cx + 9}" cy="${cy - 2}" r="${eyeR + 3}" fill="${p.accent}" opacity="0.35"/>` : '';
+    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tail}${furCrown}${ear(cx - bodyR * 0.7)}${ear(cx + bodyR * 0.7)}
+      <circle cx="${cx}" cy="${cy}" r="${bodyR}" fill="${p.base}"/>
+      <ellipse cx="${cx}" cy="${cy + bodyR * 0.5}" rx="${bodyR * 0.55}" ry="${bodyR * 0.32}" fill="${p.accent}" opacity="0.85"/>
+      ${eyeGlow}
+      <circle cx="${cx - 9}" cy="${cy - 2}" r="${eyeR}" fill="${p.dark}"/>
+      <circle cx="${cx + 9}" cy="${cy - 2}" r="${eyeR}" fill="${p.dark}"/>
+      <path d="M ${cx - 5} ${cy + 8} Q ${cx} ${cy + 12} ${cx + 5} ${cy + 8}" stroke="${p.dark}" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </svg>`;
+  }
+  function shardSVG(p, form) {
+    const s = form === 1 ? 18 : form === 2 ? 24 : 30;
+    const cx = 60, cy = 62;
+    const mainPts = `${cx},${cy - s} ${cx + s * 0.7},${cy - s * 0.2} ${cx + s * 0.5},${cy + s} ${cx - s * 0.5},${cy + s} ${cx - s * 0.7},${cy - s * 0.2}`;
+    const spikeCount = form === 2 ? 3 : form === 3 ? 5 : 0;
+    const spikes = Array.from({ length: spikeCount }).map((_, i) => {
+      const ang = -Math.PI / 2 + (i - (spikeCount - 1) / 2) * 0.45;
+      const bx = cx + Math.cos(ang) * 6, by = cy - s + 4;
+      const tx = cx + Math.cos(ang) * (form === 3 ? 16 : 10), ty = cy - s - (form === 3 ? 22 : 12);
+      return `<polygon points="${bx},${by} ${tx},${ty} ${bx - 8},${by}" fill="${p.accent}"/>`;
+    }).join('');
+    const glowCore = form === 3 ? `<circle cx="${cx}" cy="${cy}" r="${s * 0.5}" fill="${p.accent}" opacity="0.55"/>` : '';
+    const eyeR = form === 1 ? 3 : form === 2 ? 3.4 : 4;
+    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${spikes}
+      <polygon points="${mainPts}" fill="${p.base}" stroke="${p.dark}" stroke-width="2"/>
+      <line x1="${cx}" y1="${cy - s}" x2="${cx}" y2="${cy + s}" stroke="${p.dark}" stroke-width="1.5" opacity="0.5"/>
+      ${glowCore}
+      <circle cx="${cx - 8}" cy="${cy}" r="${eyeR}" fill="${p.dark}"/>
+      <circle cx="${cx + 8}" cy="${cy}" r="${eyeR}" fill="${p.dark}"/>
+    </svg>`;
+  }
+  function rivulonSVG(p, form) {
+    const len = form === 1 ? 50 : form === 2 ? 66 : 82;
+    const amp = form === 1 ? 10 : form === 2 ? 14 : 18;
+    const cx = 60, cy = 64;
+    const path = `M ${cx - len / 2} ${cy} Q ${cx - len / 4} ${cy - amp} ${cx} ${cy} Q ${cx + len / 4} ${cy + amp} ${cx + len / 2} ${cy}`;
+    const finCount = form === 2 ? 3 : form === 3 ? 5 : 0;
+    const finRidge = Array.from({ length: finCount }).map((_, i) => {
+      const t = (i + 1) / (finCount + 1);
+      const fx = cx - len / 2 + len * t;
+      return `<polygon points="${fx},${cy - 6} ${fx + 5},${cy - 16 - (form === 3 ? 6 : 0)} ${fx + 10},${cy - 6}" fill="${p.accent}"/>`;
+    }).join('');
+    const headR = form === 1 ? 10 : form === 2 ? 12 : 14;
+    const headX = cx + len / 2;
+    const whiskers = form === 3 ? `<path d="M ${headX + headR - 2} ${cy - 2} q 14 -6 18 -14" stroke="${p.accent}" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M ${headX + headR - 2} ${cy + 4} q 14 6 18 14" stroke="${p.accent}" stroke-width="2" fill="none" stroke-linecap="round"/>` : '';
+    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      <path d="${path}" stroke="${p.base}" stroke-width="${form === 1 ? 14 : form === 2 ? 18 : 22}" fill="none" stroke-linecap="round"/>
+      ${finRidge}${whiskers}
+      <circle cx="${headX}" cy="${cy}" r="${headR}" fill="${p.base}"/>
+      <circle cx="${headX + 3}" cy="${cy - 3}" r="${form === 1 ? 2.6 : form === 2 ? 3 : 3.6}" fill="${p.dark}"/>
+    </svg>`;
+  }
+  function wingtailSVG(p, form) {
+    const bodyR = form === 1 ? 18 : form === 2 ? 23 : 27;
+    const cx = 54, cy = 66;
+    const wingSize = form === 1 ? 0 : form === 2 ? 26 : 42;
+    const wing = (side) => {
+      if (!wingSize) return '';
+      const dir = side === 'L' ? -1 : 1;
+      return `<path d="M ${cx + dir * bodyR * 0.3} ${cy - 6} Q ${cx + dir * wingSize} ${cy - wingSize * 0.6} ${cx + dir * (wingSize + 8)} ${cy + 4} Q ${cx + dir * wingSize * 0.5} ${cy + 6} ${cx + dir * bodyR * 0.2} ${cy + 10} Z" fill="${p.accent}" opacity="0.92"/>`;
+    };
+    const crest = form === 3 ? `<path d="M ${cx - 6} ${cy - bodyR - 2} L ${cx} ${cy - bodyR - 16} L ${cx + 6} ${cy - bodyR - 2} Z" fill="${p.dark}"/>` : form === 2 ? `<path d="M ${cx - 2} ${cy - bodyR - 1} L ${cx + 3} ${cy - bodyR - 9} L ${cx + 7} ${cy - bodyR - 1} Z" fill="${p.dark}"/>` : '';
+    const tail = `<path d="M ${cx - bodyR + 4} ${cy + bodyR - 4} Q ${cx - bodyR - 16 - form * 4} ${cy + bodyR + 2} ${cx - bodyR - 10 - form * 4} ${cy + bodyR + 18 + form * 3}" stroke="${p.base}" stroke-width="${6 + form * 2}" fill="none" stroke-linecap="round"/>`;
+    const eyeR = form === 1 ? 2.8 : form === 2 ? 3.2 : 3.8;
+    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tail}${wing('L')}${wing('R')}${crest}
+      <circle cx="${cx}" cy="${cy}" r="${bodyR}" fill="${p.base}"/>
+      <polygon points="${cx + bodyR - 2},${cy} ${cx + bodyR + 10},${cy - 3} ${cx + bodyR + 10},${cy + 3}" fill="${p.dark}"/>
+      <circle cx="${cx + 4}" cy="${cy - 4}" r="${eyeR}" fill="${p.dark}"/>
+    </svg>`;
+  }
+  function boulderkinSVG(p, form) {
+    const s = form === 1 ? 20 : form === 2 ? 26 : 32;
+    const cx = 60, cy = 64;
+    const plateLines = form >= 2 ? `<line x1="${cx - s}" y1="${cy}" x2="${cx + s}" y2="${cy}" stroke="${p.dark}" stroke-width="2" opacity="0.4"/>` : '';
+    const spikesTop = form === 3 ? Array.from({ length: 3 }).map((_, i) => {
+      const x = cx - s * 0.5 + i * s * 0.5;
+      return `<polygon points="${x - 6},${cy - s + 4} ${x},${cy - s - 14} ${x + 6},${cy - s + 4}" fill="${p.accent}"/>`;
+    }).join('') : '';
+    const legR = form === 1 ? 6 : form === 2 ? 7 : 8;
+    const legs = `<circle cx="${cx - s * 0.5}" cy="${cy + s - 2}" r="${legR}" fill="${p.dark}"/><circle cx="${cx + s * 0.5}" cy="${cy + s - 2}" r="${legR}" fill="${p.dark}"/>`;
+    const rx = s, ry = s * 0.85;
+    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${legs}${spikesTop}
+      <rect x="${cx - rx}" y="${cy - ry}" width="${rx * 2}" height="${ry * 2}" rx="${form === 1 ? 10 : form === 2 ? 8 : 6}" fill="${p.base}" stroke="${p.dark}" stroke-width="2"/>
+      ${plateLines}
+      <rect x="${cx - rx * 0.5}" y="${cy - ry * 0.35}" width="${rx}" height="${ry * 0.5}" rx="4" fill="${p.accent}" opacity="0.85"/>
+      <circle cx="${cx - 8}" cy="${cy - 4}" r="${form === 1 ? 3 : form === 2 ? 3.4 : 4}" fill="${p.dark}"/>
+      <circle cx="${cx + 8}" cy="${cy - 4}" r="${form === 1 ? 3 : form === 2 ? 3.4 : 4}" fill="${p.dark}"/>
+    </svg>`;
+  }
+  const FAMILY_RENDERERS = { puff: puffSVG, shard: shardSVG, rivulon: rivulonSVG, wingtail: wingtailSVG, boulderkin: boulderkinSVG };
+  function renderPetArt(speciesId, form) {
+    const design = PET_DESIGN_BY_ID[speciesId] || PET_SPECIES[0];
+    return FAMILY_RENDERERS[design.family](design.palette, form);
+  }
   // Rubric v2 (Benson's expanded classroom rubric) - 5 groups covering collaboration, responsibility/
   // preparation, creativity, safety, and integrity. The source rubric gave some categories a point RANGE
   // (e.g. "Active listening (+1 or +2)"); each was collapsed to a single fixed value - the lower end for
@@ -719,11 +885,12 @@
     return `<svg class="pet-aura" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="goldGrad-${tier}" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#FFE59A"/><stop offset="100%" stop-color="#F1C40F"/></linearGradient></defs><path d="${wingPath(c,'left')}" fill="url(#goldGrad-${tier})" opacity="0.9"/><path d="${wingPath(c,'right')}" fill="url(#goldGrad-${tier})" opacity="0.9"/><polygon points="${pts}" fill="url(#goldGrad-${tier})" opacity="0.28"/><polygon points="${pts}" fill="none" stroke="#F1C40F" stroke-width="2.5" opacity="0.8"/><polygon points="${crestPts}" fill="#F1C40F" opacity="0.95"/></svg>`;
   }
   function petGlyph(st, lvl) {
-    if (lvl.stage === 0) return { text: '🥚', extraClass: 'pet-egg-wobble', cardClass: '', scale: 1, aura: '' };
-    if (lvl.stage < 0) return { text: st.species + ' ' + lvl.emoji, extraClass: '', cardClass: '', filterExtra: 'grayscale(0.4) opacity(0.75)', scale: 0.9, aura: '' };
+    if (lvl.stage === 0) return { isEgg: true, extraClass: 'pet-egg-wobble', cardClass: '', scale: 1, aura: '' };
+    const formLevel = formLevelFor(lvl.stage < 0 ? 1 : lvl.stage);
+    if (lvl.stage < 0) return { isEgg: false, svg: renderPetArt(st.species, formLevel), suffixText: ' ' + lvl.emoji, extraClass: '', cardClass: '', filterExtra: 'grayscale(0.4) opacity(0.75)', scale: 0.9, aura: '' };
     const tier = visualTier(lvl.stage);
     const cfg = TIER_CONFIG[tier];
-    return { text: st.species, extraClass: '', cardClass: cfg.cardClass, scale: cfg.scale, aura: powerAuraSvg(tier) };
+    return { isEgg: false, svg: renderPetArt(st.species, formLevel), suffixText: '', extraClass: '', cardClass: cfg.cardClass, scale: cfg.scale, aura: powerAuraSvg(tier) };
   }
   function petGlyphStyle(st, glyph) {
     const base = colorFilter(st.color);
@@ -1013,7 +1180,7 @@
         ${lvl.stage < 0 ? `<div class="sick-badge">${lvl.label.toUpperCase()}</div>` : ''}
         <div class="pet-visual-wrap">
           ${glyph.aura || ''}
-          <div class="pet-emoji ${glyph.extraClass}" style="${petGlyphStyle(st, glyph)}">${glyph.text}</div>
+          <div class="pet-emoji ${glyph.extraClass}" style="${petGlyphStyle(st, glyph)}">${glyph.isEgg ? '🥚' : '<span class="pet-art-box">' + glyph.svg + '</span>' + (glyph.suffixText || '')}</div>
         </div>
         <div class="name">${escapeHtml(st.name)}</div>
         <div class="level">${lvl.label}</div>
@@ -1069,7 +1236,7 @@
 
   function updateAddPreview() {
     const el = document.getElementById('addPetPreview');
-    el.textContent = selectedSpecies;
+    el.innerHTML = '<span class="pet-art-box">' + renderPetArt(selectedSpecies, 1) + '</span>';
     el.style.filter = colorFilter(selectedColor);
   }
 
@@ -1079,7 +1246,7 @@
     SPECIES.forEach(sp => {
       const opt = document.createElement('div');
       opt.className = 'opt' + (sp === selectedSpecies ? ' selected' : '');
-      opt.textContent = sp;
+      opt.innerHTML = '<span class="pet-art-box">' + renderPetArt(sp, 1) + '</span>';
       opt.addEventListener('click', () => {
         selectedSpecies = sp;
         picker.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
@@ -1109,7 +1276,7 @@
 
   function openCertificate(name, species, color) {
     const emojiEl = document.getElementById('certEmoji');
-    emojiEl.textContent = species + ' 🥚';
+    emojiEl.innerHTML = '<span class="pet-art-box">' + renderPetArt(species, 1) + '</span> 🥚';
     emojiEl.style.filter = colorFilter(color || 'Original');
     document.getElementById('certName').textContent = name;
     document.getElementById('certDate').textContent = 'Adopted on ' + new Date().toLocaleDateString();
@@ -1123,7 +1290,7 @@
 
   function updateCustomizePreview() {
     const el = document.getElementById('customizePetPreview');
-    el.textContent = customizeSpecies;
+    el.innerHTML = '<span class="pet-art-box">' + renderPetArt(customizeSpecies, 1) + '</span>';
     el.style.filter = colorFilter(customizeColor);
   }
 
@@ -1138,7 +1305,7 @@
     SPECIES.forEach(sp => {
       const opt = document.createElement('div');
       opt.className = 'opt' + (sp === customizeSpecies ? ' selected' : '');
-      opt.textContent = sp;
+      opt.innerHTML = '<span class="pet-art-box">' + renderPetArt(sp, 1) + '</span>';
       opt.addEventListener('click', () => {
         customizeSpecies = sp;
         picker.querySelectorAll('.opt').forEach(o => o.classList.remove('selected'));
@@ -1382,7 +1549,7 @@
     document.getElementById('detailName').textContent = st.name;
     const detailEmojiEl = document.getElementById('detailEmoji');
     const detailGlyph = petGlyph(st, lvl);
-    detailEmojiEl.textContent = detailGlyph.text;
+    detailEmojiEl.innerHTML = detailGlyph.isEgg ? '🥚' : '<span class="pet-art-box">' + detailGlyph.svg + '</span>' + (detailGlyph.suffixText || '');
     detailEmojiEl.className = detailGlyph.extraClass;
     detailEmojiEl.setAttribute('style', 'font-size:60px;' + petGlyphStyle(st, detailGlyph));
     const detailWrap = document.getElementById('detailVisualWrap');
@@ -1512,7 +1679,7 @@
     wrap.innerHTML = ranked.map((r, i) => {
       const lvl = levelFor(totalPoints(r.st)); // pet stage always reflects lifetime points, not the filtered view
       // Compact species+stage-badge (not the full aura) - leaderboard rows are too small for aura art.
-      const lbText = lvl.stage === 0 ? '🥚' : `${r.st.species}${lvl.emoji}`;
+      const lbText = lvl.stage === 0 ? '🥚' : ('<span class="pet-art-box">' + renderPetArt(r.st.species, formLevelFor(lvl.stage < 0 ? 1 : lvl.stage)) + '</span>' + lvl.emoji);
       const trendClass = r.momentum > 0 ? 'up' : (r.momentum < 0 ? 'down' : 'flat');
       const trendArrow = r.momentum > 0 ? '▲' : (r.momentum < 0 ? '▼' : '—');
       return `
@@ -1610,7 +1777,7 @@
     }
     wrap.innerHTML = state.hallOfFame.slice().reverse().map(h => `
       <div class="hof-row">
-        <div class="hof-emoji">${h.species}🏅</div>
+        <div class="hof-emoji"><span class="pet-art-box">${renderPetArt(h.species, 3)}</span>🏅</div>
         <div class="hof-info">
           <div class="hof-name">${escapeHtml(h.name)}</div>
           <div class="hof-date">${h.date} — ${h.points} pts that week</div>
@@ -1654,7 +1821,7 @@
     const medals = ['🥇', '🥈', '🥉'];
     board.innerHTML = ranked.map((r, i) => {
       const lvl = levelFor(r.pts);
-      const projText = lvl.stage === 0 ? '🥚' : `${r.st.species}${lvl.emoji}`;
+      const projText = lvl.stage === 0 ? '🥚' : ('<span class="pet-art-box">' + renderPetArt(r.st.species, formLevelFor(lvl.stage < 0 ? 1 : lvl.stage)) + '</span>' + lvl.emoji);
       return `
         <div class="proj-row">
           <div class="proj-rank">${i < 3 ? medals[i] : (i + 1)}</div>
@@ -1846,11 +2013,12 @@
     state.students.forEach(st => {
       const pts = totalPoints(st);
       const lvl = levelFor(pts);
+      const speciesName = (PET_DESIGN_BY_ID[st.species] && PET_DESIGN_BY_ID[st.species].name) || st.species;
       if (st.history.length === 0) {
-        csv += `${csvEsc(st.name)},${st.species},${pts},${lvl.label},,,\n`;
+        csv += `${csvEsc(st.name)},${speciesName},${pts},${lvl.label},,,\n`;
       } else {
         st.history.forEach(h => {
-          csv += `${csvEsc(st.name)},${st.species},${pts},${lvl.label},${new Date(h.ts).toISOString()},${csvEsc(h.label)},${h.delta}\n`;
+          csv += `${csvEsc(st.name)},${speciesName},${pts},${lvl.label},${new Date(h.ts).toISOString()},${csvEsc(h.label)},${h.delta}\n`;
         });
       }
     });
