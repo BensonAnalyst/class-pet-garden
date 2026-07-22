@@ -156,10 +156,30 @@
   /* Evolution tiers - the whole CARD changes look (border/background/glow), not just the emoji, so a
      grid of students reads as visibly different "forms" at a glance, like a real evolution line. */
   .student-card.tier-2 { border-color: #2ECC71; background: linear-gradient(180deg, #ffffff, #EFFBF3); }
-  .student-card.tier-3 { border-color: #3498DB; background: linear-gradient(180deg, #ffffff, #EAF5FC); box-shadow: 0 0 0 2px rgba(52,152,219,0.15); }
-  .student-card.tier-4 { border-color: #9B59B6; background: linear-gradient(180deg, #ffffff, #F6EEFB); box-shadow: 0 0 14px rgba(155,89,182,0.4); }
+  .student-card.tier-3 { border-color: #3498DB; background: linear-gradient(180deg, #ffffff, #EAF5FC); box-shadow: 0 0 0 2px rgba(52,152,219,0.15); animation: tier3Pulse 2.6s ease-in-out infinite; }
+  .student-card.tier-4 { border-color: #9B59B6; background: linear-gradient(180deg, #ffffff, #F6EEFB); box-shadow: 0 0 14px rgba(155,89,182,0.4); animation: tier4Pulse 2.2s ease-in-out infinite; }
   .student-card.tier-5 { border-color: #F1C40F; background: linear-gradient(180deg, #FFFDF5, #FFF6D9); box-shadow: 0 0 18px rgba(241,196,15,0.55); animation: tierPulse 1.8s ease-in-out infinite; }
   @keyframes tierPulse { 0%, 100% { box-shadow: 0 0 12px rgba(241,196,15,0.4); } 50% { box-shadow: 0 0 26px rgba(241,196,15,0.8); } }
+  @keyframes tier3Pulse { 0%, 100% { box-shadow: 0 0 0 2px rgba(52,152,219,0.15); } 50% { box-shadow: 0 0 10px rgba(52,152,219,0.4); } }
+  @keyframes tier4Pulse { 0%, 100% { box-shadow: 0 0 14px rgba(155,89,182,0.4); } 50% { box-shadow: 0 0 22px rgba(155,89,182,0.65); } }
+
+  /* Progress bar toward next level - gives continuous visual feedback even between level-ups,
+     instead of the card only visibly changing at each threshold crossing. */
+  .progress-track {
+    background: var(--bg); border-radius: 999px; height: 6px; margin-top: 8px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--teal), #34D5A0); transition: width 0.4s ease;
+  }
+  .progress-fill.neg { background: linear-gradient(90deg, var(--bad), #F08A6C); }
+
+  /* Level-up burst - a brief flash/scale on the specific card the instant a student levels up */
+  @keyframes levelUpBurst {
+    0% { transform: scale(1); box-shadow: 0 0 0 rgba(241,196,15,0); }
+    30% { transform: scale(1.08); box-shadow: 0 0 30px rgba(241,196,15,0.9); }
+    100% { transform: scale(1); box-shadow: 0 0 0 rgba(241,196,15,0); }
+  }
+  .student-card.level-up-burst { animation: levelUpBurst 0.9s ease; }
   .student-card .name { font-weight: 600; font-size: 14px; margin-top: 6px; }
   .student-card .level { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .student-card .points { font-size: 12px; margin-top: 4px; font-weight: 700; }
@@ -558,6 +578,7 @@
       </div>
       <div id="detailLevel" class="muted"></div>
       <div id="detailPoints" style="font-weight:700; font-size:18px; margin-top:4px;"></div>
+      <div class="progress-track" style="max-width:240px; margin:8px auto 0;"><div class="progress-fill" id="detailProgressFill" style="width:0%"></div></div>
     </div>
     <label style="margin-top:14px;">Group</label>
     <select id="detailGroupSelect"></select>
@@ -654,10 +675,10 @@
   const TIER_CONFIG = [
     null,
     { cardClass: '',       scale: 1.00 }, // 1 Egg/Hatchling - no aura
-    { cardClass: 'tier-2', scale: 1.00 }, // 2 Sprout/Nibbler - vine ring
-    { cardClass: 'tier-3', scale: 1.00 }, // 3 Adventurer/Explorer - energy ring
-    { cardClass: 'tier-4', scale: 1.00 }, // 4 Champion/Hero - + wings
-    { cardClass: 'tier-5', scale: 1.00 }, // 5 Master/Legend/Star King - + crest, gold
+    { cardClass: 'tier-2', scale: 1.08 }, // 2 Sprout/Nibbler - vine ring
+    { cardClass: 'tier-3', scale: 1.16 }, // 3 Adventurer/Explorer - energy ring
+    { cardClass: 'tier-4', scale: 1.26 }, // 4 Champion/Hero - + wings
+    { cardClass: 'tier-5', scale: 1.38 }, // 5 Master/Legend/Star King - + crest, gold
   ];
   function starPoints(cx, cy, spikes, outerR, innerR) {
     const step = Math.PI / spikes;
@@ -807,6 +828,7 @@
 
   let leaderboardMode = 'individual'; // 'individual' | 'group'
   let leaderboardPeriod = 'all'; // 'all' | 'week' | 'month'
+  let justLeveledId = null; // student id to flash a level-up burst animation for on the next dashboard render
 
   // ---------- Navigation ----------
   function showScreen(name) {
@@ -890,6 +912,25 @@
     return { stage: stageIdx, label: STAGE_LABELS[stageIdx], emoji: STAGE_EMOJIS[stageIdx] };
   }
 
+  // Progress toward the NEXT level, as a 0-100 percentage - gives a continuously-moving visual signal
+  // instead of the card only changing at each threshold crossing. Critical/Unwell measure recovery
+  // progress back toward 0; a maxed-out student (top stage) always shows a full bar.
+  function progressToNextLevel(points) {
+    if (points <= state.criticalThreshold) return { pct: 0, negative: true };
+    if (points < 0) {
+      const range = 0 - state.criticalThreshold;
+      const prog = points - state.criticalThreshold;
+      return { pct: Math.max(4, Math.min(100, (prog / range) * 100)), negative: true };
+    }
+    const thresholds = state.thresholds;
+    let idx = 0;
+    for (let i = 0; i < thresholds.length; i++) { if (points >= thresholds[i]) idx = i; }
+    if (idx >= thresholds.length - 1) return { pct: 100, negative: false };
+    const cur = thresholds[idx], next = thresholds[idx + 1];
+    const pct = ((points - cur) / (next - cur)) * 100;
+    return { pct: Math.max(4, Math.min(100, pct)), negative: false };
+  }
+
   function totalPoints(student) {
     return student.history.reduce((sum, h) => sum + h.delta, 0);
   }
@@ -965,8 +1006,9 @@
       const pts = totalPoints(st);
       const lvl = levelFor(pts);
       const glyph = petGlyph(st, lvl);
+      const prog = progressToNextLevel(pts);
       const card = document.createElement('div');
-      card.className = 'student-card' + (lvl.stage < 0 ? ' sick' : '') + (glyph.cardClass ? ' ' + glyph.cardClass : '');
+      card.className = 'student-card' + (lvl.stage < 0 ? ' sick' : '') + (glyph.cardClass ? ' ' + glyph.cardClass : '') + (st.id === justLeveledId ? ' level-up-burst' : '');
       card.innerHTML = `
         ${lvl.stage < 0 ? `<div class="sick-badge">${lvl.label.toUpperCase()}</div>` : ''}
         <div class="pet-visual-wrap">
@@ -976,12 +1018,14 @@
         <div class="name">${escapeHtml(st.name)}</div>
         <div class="level">${lvl.label}</div>
         <div class="points">${pts} pts</div>
+        <div class="progress-track"><div class="progress-fill${prog.negative ? ' neg' : ''}" style="width:${prog.pct}%"></div></div>
       `;
       card.addEventListener('click', () => openDetail(st.id));
       grid.appendChild(card);
     });
     wrap.innerHTML = '';
     wrap.appendChild(grid);
+    justLeveledId = null;
   }
 
   function escapeHtml(s) {
@@ -1347,6 +1391,10 @@
     if (detailGlyph.aura) detailWrap.insertAdjacentHTML('afterbegin', detailGlyph.aura);
     document.getElementById('detailLevel').textContent = lvl.label;
     document.getElementById('detailPoints').textContent = pts + ' points';
+    const detailProg = progressToNextLevel(pts);
+    const detailProgFillEl = document.getElementById('detailProgressFill');
+    detailProgFillEl.className = 'progress-fill' + (detailProg.negative ? ' neg' : '');
+    detailProgFillEl.style.width = detailProg.pct + '%';
 
     const groupSelect = document.getElementById('detailGroupSelect');
     groupSelect.innerHTML = '<option value="">No group</option>' +
@@ -1377,6 +1425,7 @@
           const afterLvl = levelFor(totalPoints(st));
           saveState();
           renderDetail();
+          if (afterLvl.stage > beforeStage) { justLeveledId = st.id; }
           renderDashboard();
           if (afterLvl.stage > beforeStage) {
             showCelebration(`🎉 ${st.name}'s pet leveled up to ${afterLvl.label}!`);
@@ -1423,6 +1472,7 @@
     document.getElementById('customEventLabel').value = '';
     document.getElementById('customEventPoints').value = '';
     renderDetail();
+    if (afterLvl.stage > beforeStage) { justLeveledId = st.id; }
     renderDashboard();
     if (afterLvl.stage > beforeStage) {
       showCelebration(`🎉 ${st.name}'s pet leveled up to ${afterLvl.label}!`);
