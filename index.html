@@ -630,26 +630,26 @@
     wind:  { base: '#5FC9C9', accent: '#EAFFFB', dark: '#2E7A7A' },
   };
   const PET_SPECIES = [
-    { id: '🐱', name: 'Emberkit',    family: 'puff',       element: 'fire' },
-    { id: '🐶', name: 'Tidepup',     family: 'puff',       element: 'water' },
-    { id: '🐰', name: 'Sparkit',     family: 'puff',       element: 'storm' },
-    { id: '🐼', name: 'Gustbun',     family: 'puff',       element: 'wind' },
-    { id: '🐲', name: 'Rubycore',    family: 'shard',      element: 'fire' },
-    { id: '🦊', name: 'Aquashard',   family: 'shard',      element: 'water' },
-    { id: '🐨', name: 'Voltgem',     family: 'shard',      element: 'storm' },
-    { id: '🐸', name: 'Zephyrshard', family: 'shard',      element: 'wind' },
-    { id: '🐷', name: 'Cinderail',   family: 'rivulon',    element: 'fire' },
-    { id: '🐹', name: 'Tiderill',    family: 'rivulon',    element: 'water' },
-    { id: '🐯', name: 'Squallwisp',  family: 'rivulon',    element: 'storm' },
-    { id: '🐘', name: 'Galewisp',    family: 'rivulon',    element: 'wind' },
-    { id: '🦄', name: 'Emberwing',   family: 'wingtail',   element: 'fire' },
-    { id: '🐢', name: 'Mistwing',    family: 'wingtail',   element: 'water' },
-    { id: '🦉', name: 'Stormcrest',  family: 'wingtail',   element: 'storm' },
-    { id: '🐧', name: 'Windplume',   family: 'wingtail',   element: 'wind' },
-    { id: '🐭', name: 'Magmaback',   family: 'boulderkin', element: 'fire' },
-    { id: '🦁', name: 'Coralback',   family: 'boulderkin', element: 'water' },
-    { id: '🐺', name: 'Thunderhide', family: 'boulderkin', element: 'storm' },
-    { id: '🐬', name: 'Duneling',    family: 'boulderkin', element: 'wind' },
+    { id: '🐱', name: 'Emberkit',    family: 'puff',       element: 'fire',  kind: 'cat' },
+    { id: '🐶', name: 'Tidepup',     family: 'puff',       element: 'water', kind: 'dog' },
+    { id: '🐰', name: 'Sparkit',     family: 'puff',       element: 'storm', kind: 'rabbit' },
+    { id: '🐼', name: 'Gustbun',     family: 'puff',       element: 'wind',  kind: 'panda' },
+    { id: '🐲', name: 'Rubycore',    family: 'shard',      element: 'fire',  kind: 'dragon' },
+    { id: '🦊', name: 'Aquashard',   family: 'shard',      element: 'water', kind: 'fox' },
+    { id: '🐨', name: 'Voltgem',     family: 'shard',      element: 'storm', kind: 'koala' },
+    { id: '🐸', name: 'Zephyrshard', family: 'shard',      element: 'wind',  kind: 'frog' },
+    { id: '🐷', name: 'Cinderail',   family: 'rivulon',    element: 'fire',  kind: 'pig' },
+    { id: '🐹', name: 'Tiderill',    family: 'rivulon',    element: 'water', kind: 'hamster' },
+    { id: '🐯', name: 'Squallwisp',  family: 'rivulon',    element: 'storm', kind: 'tiger' },
+    { id: '🐘', name: 'Galewisp',    family: 'rivulon',    element: 'wind',  kind: 'elephant' },
+    { id: '🦄', name: 'Emberwing',   family: 'wingtail',   element: 'fire',  kind: 'unicorn' },
+    { id: '🐢', name: 'Mistwing',    family: 'wingtail',   element: 'water', kind: 'turtle' },
+    { id: '🦉', name: 'Stormcrest',  family: 'wingtail',   element: 'storm', kind: 'owl' },
+    { id: '🐧', name: 'Windplume',   family: 'wingtail',   element: 'wind',  kind: 'penguin' },
+    { id: '🐭', name: 'Magmaback',   family: 'boulderkin', element: 'fire',  kind: 'mouse' },
+    { id: '🦁', name: 'Coralback',   family: 'boulderkin', element: 'water', kind: 'lion' },
+    { id: '🐺', name: 'Thunderhide', family: 'boulderkin', element: 'storm', kind: 'wolf' },
+    { id: '🐬', name: 'Duneling',    family: 'boulderkin', element: 'wind',  kind: 'dolphin' },
   ];
   const SPECIES = PET_SPECIES.map(s => s.id);
   const PET_DESIGN_BY_ID = {};
@@ -657,13 +657,19 @@
 
   const ARMOR = '#B8C0C8', ARMOR_DARK = '#6B747C';
   // Armor band (all forms) + shoulder pads (form 2+) + chest gem & full elemental burst (form 3).
-  function armorAndElement(cx, cy, scale, form, element, gemColor) {
-    let out = `<rect x="${cx - scale * 0.55}" y="${cy + scale * 0.25}" width="${scale * 1.1}" height="${scale * 0.34}" rx="${scale * 0.1}" fill="${ARMOR}" stroke="${ARMOR_DARK}" stroke-width="1.5"/>`;
+  // Band anchors low (bandCy, defaulting to the body center) so it reads as a chest/collar piece
+  // instead of crossing the face; the elemental aura still centers on the whole creature (cx, cy).
+  function armorAndElement(cx, cy, scale, form, element, gemColor, bandCy) {
+    const by = bandCy !== undefined ? bandCy : cy;
+    const bandY = by + scale * 0.56;
+    const bandH = scale * 0.28;
+    const shoulderY = by + scale * 0.4;
+    let out = `<rect x="${cx - scale * 0.36}" y="${bandY}" width="${scale * 0.72}" height="${bandH}" rx="${scale * 0.08}" fill="${ARMOR}" stroke="${ARMOR_DARK}" stroke-width="1.5"/>`;
     if (form >= 2) {
-      out += `<circle cx="${cx - scale * 0.85}" cy="${cy - scale * 0.05}" r="${scale * 0.22}" fill="${ARMOR}" stroke="${ARMOR_DARK}" stroke-width="1.5"/><circle cx="${cx + scale * 0.85}" cy="${cy - scale * 0.05}" r="${scale * 0.22}" fill="${ARMOR}" stroke="${ARMOR_DARK}" stroke-width="1.5"/>`;
+      out += `<circle cx="${cx - scale * 0.52}" cy="${shoulderY}" r="${scale * 0.14}" fill="${ARMOR}" stroke="${ARMOR_DARK}" stroke-width="1.5"/><circle cx="${cx + scale * 0.52}" cy="${shoulderY}" r="${scale * 0.14}" fill="${ARMOR}" stroke="${ARMOR_DARK}" stroke-width="1.5"/>`;
     }
     if (form === 3) {
-      out += `<circle cx="${cx}" cy="${cy + scale * 0.42}" r="${scale * 0.14}" fill="${gemColor}" stroke="${ARMOR_DARK}" stroke-width="1"/>`;
+      out += `<circle cx="${cx}" cy="${bandY + bandH / 2}" r="${scale * 0.09}" fill="${gemColor}" stroke="${ARMOR_DARK}" stroke-width="1"/>`;
       out += elementFX(element, cx, cy, scale);
     }
     return out;
@@ -693,130 +699,322 @@
     return 3;
   }
 
-  // Each "family" function draws one species' silhouette at a given form (1-3) using only basic SVG
-  // primitives - circles, paths, polygons. FORM drives real shape changes (new ears, tails, wings, spikes,
-  // crowns get added), so evolving reads as a genuine transformation, not the same icon getting bigger.
-  function puffSVG(p, form, element) {
+  // Two shared body archetypes cover all 20 species so each reads as a real animal: roundMascotSVG
+  // (chibi head+body circle - cat/dog/rabbit/panda/dragon/fox/koala/frog/owl/penguin/mouse/lion/wolf)
+  // and quadrupedSVG (body + head + 4 legs - pig/hamster/tiger/elephant/unicorn), plus two one-off
+  // archetypes for turtle (shell) and dolphin (aquatic). Species differ via ears/snout/tail/markings
+  // keyed on `kind`. Armor appears from form 1, shoulder pads at form 2, elemental FX at form 3.
+  function roundMascotSVG(p, form, element, kind) {
     const bodyR = form === 1 ? 22 : form === 2 ? 28 : 34;
     const cx = 60, cy = form === 1 ? 68 : form === 2 ? 64 : 60;
     const earR = form === 1 ? 7 : form === 2 ? 9 : 11;
-    const earY = cy - bodyR - earR * 0.6;
-    const ear = (ex) => form === 1
-      ? `<circle cx="${ex}" cy="${earY}" r="${earR}" fill="${p.base}"/>`
-      : `<path d="M ${ex - earR} ${earY + earR} Q ${ex} ${earY - earR * 1.6} ${ex + earR} ${earY + earR} Z" fill="${p.base}"/>`;
-    const tail = form === 1 ? '' : form === 2
-      ? `<path d="M ${cx + bodyR - 4} ${cy + bodyR - 6} Q ${cx + bodyR + 18} ${cy + bodyR + 2} ${cx + bodyR + 10} ${cy + bodyR - 16}" stroke="${p.dark}" stroke-width="6" fill="none" stroke-linecap="round"/>`
-      : `<path d="M ${cx + bodyR - 2} ${cy + bodyR - 10} Q ${cx + bodyR + 32} ${cy + bodyR + 6} ${cx + bodyR + 16} ${cy + bodyR - 30}" stroke="${p.accent}" stroke-width="9" fill="none" stroke-linecap="round"/><circle cx="${cx + bodyR + 16}" cy="${cy + bodyR - 30}" r="6" fill="${p.dark}"/>`;
-    const furCrown = form === 3 ? Array.from({ length: 7 }).map((_, i) => {
-      const ang = (i / 6) * Math.PI - Math.PI / 2 - 0.35;
-      const x1 = cx + Math.cos(ang) * (bodyR - 4), y1 = cy + Math.sin(ang) * (bodyR - 4) - 2;
-      const x2 = cx + Math.cos(ang) * (bodyR + 14), y2 = cy + Math.sin(ang) * (bodyR + 14) - 2;
-      return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${p.accent}" stroke-width="4" stroke-linecap="round"/>`;
-    }).join('') : '';
-    const eyeR = form === 1 ? 3.2 : form === 2 ? 3.6 : 4.2;
-    const eyeGlow = form === 3 ? `<circle cx="${cx - 9}" cy="${cy - 2}" r="${eyeR + 3}" fill="${p.accent}" opacity="0.35"/><circle cx="${cx + 9}" cy="${cy - 2}" r="${eyeR + 3}" fill="${p.accent}" opacity="0.35"/>` : '';
-    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-      ${tail}${furCrown}${ear(cx - bodyR * 0.7)}${ear(cx + bodyR * 0.7)}
-      <circle cx="${cx}" cy="${cy}" r="${bodyR}" fill="${p.base}"/>
-      <ellipse cx="${cx}" cy="${cy + bodyR * 0.5}" rx="${bodyR * 0.55}" ry="${bodyR * 0.32}" fill="${p.accent}" opacity="0.85"/>
-      ${eyeGlow}
-      <circle cx="${cx - 9}" cy="${cy - 2}" r="${eyeR}" fill="${p.dark}"/>
-      <circle cx="${cx + 9}" cy="${cy - 2}" r="${eyeR}" fill="${p.dark}"/>
-      <path d="M ${cx - 5} ${cy + 8} Q ${cx} ${cy + 12} ${cx + 5} ${cy + 8}" stroke="${p.dark}" stroke-width="2" fill="none" stroke-linecap="round"/>
-      ${armorAndElement(cx, cy, bodyR, form, element, p.accent)}
-    </svg>`;
-  }
-  function shardSVG(p, form, element) {
-    const s = form === 1 ? 18 : form === 2 ? 24 : 30;
-    const cx = 60, cy = 62;
-    const mainPts = `${cx},${cy - s} ${cx + s * 0.7},${cy - s * 0.2} ${cx + s * 0.5},${cy + s} ${cx - s * 0.5},${cy + s} ${cx - s * 0.7},${cy - s * 0.2}`;
-    const spikeCount = form === 2 ? 3 : form === 3 ? 5 : 0;
-    const spikes = Array.from({ length: spikeCount }).map((_, i) => {
-      const ang = -Math.PI / 2 + (i - (spikeCount - 1) / 2) * 0.45;
-      const bx = cx + Math.cos(ang) * 6, by = cy - s + 4;
-      const tx = cx + Math.cos(ang) * (form === 3 ? 16 : 10), ty = cy - s - (form === 3 ? 22 : 12);
-      return `<polygon points="${bx},${by} ${tx},${ty} ${bx - 8},${by}" fill="${p.accent}"/>`;
-    }).join('');
-    const glowCore = form === 3 ? `<circle cx="${cx}" cy="${cy}" r="${s * 0.5}" fill="${p.accent}" opacity="0.55"/>` : '';
-    const eyeR = form === 1 ? 3 : form === 2 ? 3.4 : 4;
-    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-      ${spikes}
-      <polygon points="${mainPts}" fill="${p.base}" stroke="${p.dark}" stroke-width="2"/>
-      <line x1="${cx}" y1="${cy - s}" x2="${cx}" y2="${cy + s}" stroke="${p.dark}" stroke-width="1.5" opacity="0.5"/>
-      ${glowCore}
-      <circle cx="${cx - 8}" cy="${cy}" r="${eyeR}" fill="${p.dark}"/>
-      <circle cx="${cx + 8}" cy="${cy}" r="${eyeR}" fill="${p.dark}"/>
-      ${armorAndElement(cx, cy, s, form, element, p.accent)}
-    </svg>`;
-  }
-  function rivulonSVG(p, form, element) {
-    const len = form === 1 ? 50 : form === 2 ? 66 : 82;
-    const amp = form === 1 ? 10 : form === 2 ? 14 : 18;
-    const cx = 60, cy = 64;
-    const path = `M ${cx - len / 2} ${cy} Q ${cx - len / 4} ${cy - amp} ${cx} ${cy} Q ${cx + len / 4} ${cy + amp} ${cx + len / 2} ${cy}`;
-    const finCount = form === 2 ? 3 : form === 3 ? 5 : 0;
-    const finRidge = Array.from({ length: finCount }).map((_, i) => {
-      const t = (i + 1) / (finCount + 1);
-      const fx = cx - len / 2 + len * t;
-      return `<polygon points="${fx},${cy - 6} ${fx + 5},${cy - 16 - (form === 3 ? 6 : 0)} ${fx + 10},${cy - 6}" fill="${p.accent}"/>`;
-    }).join('');
-    const headR = form === 1 ? 10 : form === 2 ? 12 : 14;
-    const headX = cx + len / 2;
-    const whiskers = form === 3 ? `<path d="M ${headX + headR - 2} ${cy - 2} q 14 -6 18 -14" stroke="${p.accent}" stroke-width="2" fill="none" stroke-linecap="round"/><path d="M ${headX + headR - 2} ${cy + 4} q 14 6 18 14" stroke="${p.accent}" stroke-width="2" fill="none" stroke-linecap="round"/>` : '';
-    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-      <path d="${path}" stroke="${p.base}" stroke-width="${form === 1 ? 14 : form === 2 ? 18 : 22}" fill="none" stroke-linecap="round"/>
-      ${finRidge}${whiskers}
-      <circle cx="${headX}" cy="${cy}" r="${headR}" fill="${p.base}"/>
-      <circle cx="${headX + 3}" cy="${cy - 3}" r="${form === 1 ? 2.6 : form === 2 ? 3 : 3.6}" fill="${p.dark}"/>
-      ${armorAndElement(headX - headR * 0.3, cy, headR * 1.6, form, element, p.accent)}
-    </svg>`;
-  }
-  function wingtailSVG(p, form, element) {
-    const bodyR = form === 1 ? 18 : form === 2 ? 23 : 27;
-    const cx = 54, cy = 66;
-    const wingSize = form === 1 ? 0 : form === 2 ? 26 : 42;
-    const wing = (side) => {
-      if (!wingSize) return '';
-      const dir = side === 'L' ? -1 : 1;
-      return `<path d="M ${cx + dir * bodyR * 0.3} ${cy - 6} Q ${cx + dir * wingSize} ${cy - wingSize * 0.6} ${cx + dir * (wingSize + 8)} ${cy + 4} Q ${cx + dir * wingSize * 0.5} ${cy + 6} ${cx + dir * bodyR * 0.2} ${cy + 10} Z" fill="${p.accent}" opacity="0.92"/>`;
+    const earY = cy - bodyR - earR * 0.5;
+    const earGapX = bodyR * 0.62;
+    const noEars = kind === 'frog' || kind === 'penguin';
+
+    const oneEar = (ex) => {
+      switch (kind) {
+        case 'cat':
+          return `<polygon points="${ex - earR},${earY + earR} ${ex},${earY - earR * 1.6} ${ex + earR},${earY + earR}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/><polygon points="${ex - earR * 0.45},${earY + earR * 0.55} ${ex},${earY - earR * 0.55} ${ex + earR * 0.45},${earY + earR * 0.55}" fill="${p.accent}" opacity="0.85"/>`;
+        case 'dog':
+          return `<ellipse cx="${ex}" cy="${earY + earR}" rx="${earR * 0.6}" ry="${earR * 1.5}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/>`;
+        case 'rabbit':
+          return `<ellipse cx="${ex}" cy="${earY - earR * 1.2}" rx="${earR * 0.4}" ry="${earR * 2.1}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/><ellipse cx="${ex}" cy="${earY - earR * 1.2}" rx="${earR * 0.18}" ry="${earR * 1.6}" fill="${p.accent}" opacity="0.8"/>`;
+        case 'panda':
+          return `<circle cx="${ex}" cy="${earY}" r="${earR}" fill="#3A3A3A"/>`;
+        case 'dragon':
+          return `<polygon points="${ex - earR * 0.6},${earY + earR} ${ex},${earY - earR * 1.3} ${ex + earR * 0.6},${earY + earR}" fill="${p.dark}"/>`;
+        case 'fox':
+          return `<polygon points="${ex - earR * 0.9},${earY + earR} ${ex},${earY - earR * 1.8} ${ex + earR * 0.9},${earY + earR}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/><polygon points="${ex - earR * 0.4},${earY + earR * 0.4} ${ex},${earY - earR * 0.9} ${ex + earR * 0.4},${earY + earR * 0.4}" fill="${p.dark}" opacity="0.85"/>`;
+        case 'koala':
+          return `<circle cx="${ex}" cy="${earY}" r="${earR * 1.5}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/><circle cx="${ex}" cy="${earY}" r="${earR * 0.7}" fill="${p.accent}" opacity="0.6"/>`;
+        case 'owl':
+          return `<polygon points="${ex - earR * 0.6},${earY + earR} ${ex},${earY - earR * 1.5} ${ex + earR * 0.2},${earY + earR * 0.4}" fill="${p.dark}"/>`;
+        case 'mouse':
+          return `<circle cx="${ex}" cy="${earY - earR * 0.2}" r="${earR * 1.3}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/><circle cx="${ex}" cy="${earY - earR * 0.2}" r="${earR * 0.6}" fill="${p.accent}" opacity="0.55"/>`;
+        case 'lion':
+          return `<circle cx="${ex}" cy="${earY}" r="${earR * 0.8}" fill="${p.dark}"/>`;
+        case 'wolf':
+          return `<polygon points="${ex - earR * 0.8},${earY + earR} ${ex},${earY - earR * 1.5} ${ex + earR * 0.8},${earY + earR}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/>`;
+        default:
+          return `<circle cx="${ex}" cy="${earY}" r="${earR}" fill="${p.base}"/>`;
+      }
     };
-    const crest = form === 3 ? `<path d="M ${cx - 6} ${cy - bodyR - 2} L ${cx} ${cy - bodyR - 16} L ${cx + 6} ${cy - bodyR - 2} Z" fill="${p.dark}"/>` : form === 2 ? `<path d="M ${cx - 2} ${cy - bodyR - 1} L ${cx + 3} ${cy - bodyR - 9} L ${cx + 7} ${cy - bodyR - 1} Z" fill="${p.dark}"/>` : '';
-    const tail = `<path d="M ${cx - bodyR + 4} ${cy + bodyR - 4} Q ${cx - bodyR - 16 - form * 4} ${cy + bodyR + 2} ${cx - bodyR - 10 - form * 4} ${cy + bodyR + 18 + form * 3}" stroke="${p.base}" stroke-width="${6 + form * 2}" fill="none" stroke-linecap="round"/>`;
-    const eyeR = form === 1 ? 2.8 : form === 2 ? 3.2 : 3.8;
+    const ears = noEars ? '' : oneEar(cx - earGapX) + oneEar(cx + earGapX);
+
+    const tailBaseX = cx + bodyR - 4, tailBaseY = cy + bodyR - 6;
+    let tail = '';
+    switch (kind) {
+      case 'cat':
+        tail = `<path d="M ${tailBaseX} ${tailBaseY} Q ${cx + bodyR + 20 + form * 4} ${cy + bodyR - 4} ${cx + bodyR + 14 + form * 4} ${cy - bodyR * 0.2 - form * 4}" stroke="${p.dark}" stroke-width="${5 + form}" fill="none" stroke-linecap="round"/>`;
+        break;
+      case 'dog':
+        tail = `<path d="M ${tailBaseX} ${tailBaseY} Q ${cx + bodyR + 16 + form * 3} ${cy + bodyR + 6} ${cx + bodyR + 10 + form * 3} ${cy + bodyR - 18 - form * 4}" stroke="${p.base}" stroke-width="${6 + form}" fill="none" stroke-linecap="round"/>`;
+        break;
+      case 'rabbit':
+        tail = `<circle cx="${cx + bodyR - 2}" cy="${cy + bodyR - 2}" r="${5 + form}" fill="#FFFFFF" stroke="${p.dark}" stroke-width="1"/>`;
+        break;
+      case 'dragon':
+        tail = `<path d="M ${tailBaseX} ${tailBaseY} Q ${cx + bodyR + 26 + form * 5} ${cy + bodyR + 2} ${cx + bodyR + 18 + form * 5} ${cy + bodyR - 22 - form * 4}" stroke="${p.base}" stroke-width="${5 + form}" fill="none" stroke-linecap="round"/><polygon points="${cx + bodyR + 18 + form * 5},${cy + bodyR - 22 - form * 4} ${cx + bodyR + 10 + form * 5},${cy + bodyR - 30 - form * 4} ${cx + bodyR + 24 + form * 5},${cy + bodyR - 32 - form * 4}" fill="${p.accent}"/>`;
+        break;
+      case 'fox':
+        tail = `<path d="M ${tailBaseX} ${tailBaseY} Q ${cx + bodyR + 28 + form * 5} ${cy + bodyR + 4} ${cx + bodyR + 16 + form * 5} ${cy + bodyR - 20 - form * 4}" stroke="${p.base}" stroke-width="${8 + form * 1.4}" fill="none" stroke-linecap="round"/><circle cx="${cx + bodyR + 16 + form * 5}" cy="${cy + bodyR - 20 - form * 4}" r="${4 + form}" fill="#FFFFFF"/>`;
+        break;
+      case 'owl':
+        tail = `<polygon points="${cx - 6},${cy + bodyR - 2} ${cx + 6},${cy + bodyR - 2} ${cx},${cy + bodyR + 10 + form * 2}" fill="${p.dark}"/>`;
+        break;
+      case 'mouse':
+        tail = `<path d="M ${tailBaseX} ${tailBaseY} Q ${cx + bodyR + 30 + form * 6} ${cy + bodyR - 6} ${cx + bodyR + 22 + form * 6} ${cy + bodyR + 14 + form * 3}" stroke="${p.dark}" stroke-width="2" fill="none" stroke-linecap="round"/>`;
+        break;
+      case 'lion':
+        tail = `<path d="M ${tailBaseX} ${tailBaseY} Q ${cx + bodyR + 24 + form * 5} ${cy + bodyR + 4} ${cx + bodyR + 20 + form * 5} ${cy + bodyR - 14 - form * 3}" stroke="${p.base}" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="${cx + bodyR + 20 + form * 5}" cy="${cy + bodyR - 14 - form * 3}" r="${4 + form}" fill="${p.dark}"/>`;
+        break;
+      case 'wolf':
+        tail = `<path d="M ${tailBaseX} ${tailBaseY} Q ${cx + bodyR + 26 + form * 5} ${cy + bodyR + 2} ${cx + bodyR + 16 + form * 5} ${cy + bodyR - 20 - form * 4}" stroke="${p.dark}" stroke-width="${7 + form}" fill="none" stroke-linecap="round"/>`;
+        break;
+    }
+
+    let wings = '';
+    if (kind === 'dragon' && form >= 2) {
+      const wsize = form === 3 ? 26 : 16;
+      wings = `<path d="M ${cx - bodyR * 0.4} ${cy - 4} Q ${cx - bodyR - wsize} ${cy - wsize * 0.8} ${cx - bodyR - wsize * 1.3} ${cy + 4} Q ${cx - bodyR - wsize * 0.5} ${cy + 6} ${cx - bodyR * 0.3} ${cy + 10} Z" fill="${p.accent}" opacity="0.9"/><path d="M ${cx + bodyR * 0.4} ${cy - 4} Q ${cx + bodyR + wsize} ${cy - wsize * 0.8} ${cx + bodyR + wsize * 1.3} ${cy + 4} Q ${cx + bodyR + wsize * 0.5} ${cy + 6} ${cx + bodyR * 0.3} ${cy + 10} Z" fill="${p.accent}" opacity="0.9"/>`;
+    }
+    if (kind === 'owl') {
+      const wsize = bodyR * 0.55;
+      wings = `<ellipse cx="${cx - bodyR * 0.75}" cy="${cy + 2}" rx="${wsize * 0.5}" ry="${wsize}" fill="${p.dark}" opacity="0.85"/><ellipse cx="${cx + bodyR * 0.75}" cy="${cy + 2}" rx="${wsize * 0.5}" ry="${wsize}" fill="${p.dark}" opacity="0.85"/>`;
+    }
+    if (kind === 'penguin') {
+      const wsize = bodyR * 0.55;
+      wings = `<ellipse cx="${cx - bodyR * 0.85}" cy="${cy + 4}" rx="${wsize * 0.35}" ry="${wsize}" fill="${p.dark}"/><ellipse cx="${cx + bodyR * 0.85}" cy="${cy + 4}" rx="${wsize * 0.35}" ry="${wsize}" fill="${p.dark}"/>`;
+    }
+
+    let snout = '';
+    const noseY = cy + bodyR * 0.22;
+    switch (kind) {
+      case 'dog': case 'fox': case 'wolf':
+        snout = `<ellipse cx="${cx}" cy="${noseY + 4}" rx="${bodyR * 0.26}" ry="${bodyR * 0.18}" fill="${kind === 'fox' ? '#FFFFFF' : p.accent}" opacity="0.9"/><circle cx="${cx}" cy="${noseY + 4}" r="2.4" fill="${p.dark}"/>`;
+        break;
+      case 'panda':
+        snout = `<ellipse cx="${cx}" cy="${noseY + 3}" rx="${bodyR * 0.2}" ry="${bodyR * 0.14}" fill="#F4F4F4"/><circle cx="${cx}" cy="${noseY + 3}" r="2" fill="#222"/>`;
+        break;
+      case 'mouse':
+        snout = `<circle cx="${cx}" cy="${noseY + 2}" r="2.4" fill="#E88"/>`;
+        break;
+      case 'frog':
+        snout = `<path d="M ${cx - bodyR * 0.5} ${noseY + 6} Q ${cx} ${noseY + 12} ${cx + bodyR * 0.5} ${noseY + 6}" stroke="${p.dark}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+        break;
+      case 'owl': case 'penguin':
+        snout = `<polygon points="${cx - 4},${cy + 2} ${cx + 4},${cy + 2} ${cx},${cy + 10}" fill="#F5A623"/>`;
+        break;
+      default:
+        snout = `<circle cx="${cx}" cy="${noseY + 2}" r="2" fill="${p.dark}" opacity="0.7"/>`;
+    }
+
+    const bulgeEye = kind === 'frog' || kind === 'owl';
+    const eyeR = bulgeEye ? (form === 1 ? 4.5 : form === 2 ? 5.5 : 6.5) : (form === 1 ? 3.2 : form === 2 ? 3.6 : 4.2);
+    const eyeGapX = kind === 'frog' ? bodyR * 0.42 : 9;
+    const eyeY = kind === 'frog' ? cy - bodyR * 0.85 : cy - 2;
+    const eyeGlow = form === 3 ? `<circle cx="${cx - eyeGapX}" cy="${eyeY}" r="${eyeR + 3}" fill="${p.accent}" opacity="0.3"/><circle cx="${cx + eyeGapX}" cy="${eyeY}" r="${eyeR + 3}" fill="${p.accent}" opacity="0.3"/>` : '';
+    const eyeWhite = bulgeEye ? `<circle cx="${cx - eyeGapX}" cy="${eyeY}" r="${eyeR}" fill="#FFF" stroke="${p.dark}" stroke-width="1"/><circle cx="${cx + eyeGapX}" cy="${eyeY}" r="${eyeR}" fill="#FFF" stroke="${p.dark}" stroke-width="1"/>` : '';
+    const pupilR = bulgeEye ? eyeR * 0.5 : eyeR;
+
+    let marking = '';
+    if (kind === 'panda') marking = `<ellipse cx="${cx - 9}" cy="${cy - 3}" rx="7" ry="9" fill="#2B2B2B" opacity="0.85"/><ellipse cx="${cx + 9}" cy="${cy - 3}" rx="7" ry="9" fill="#2B2B2B" opacity="0.85"/>`;
+    if (kind === 'fox') marking = `<ellipse cx="${cx}" cy="${cy + bodyR * 0.55}" rx="${bodyR * 0.42}" ry="${bodyR * 0.28}" fill="#FFFFFF" opacity="0.85"/>`;
+    if (kind === 'dragon' && form === 3) marking = Array.from({ length: 3 }).map((_, i) => {
+      const x = cx - bodyR * 0.4 + i * bodyR * 0.4;
+      return `<polygon points="${x - 4},${cy - bodyR + 6} ${x},${cy - bodyR - 8} ${x + 4},${cy - bodyR + 6}" fill="${p.accent}"/>`;
+    }).join('');
+    if (kind === 'penguin') marking = `<ellipse cx="${cx}" cy="${cy + bodyR * 0.35}" rx="${bodyR * 0.5}" ry="${bodyR * 0.55}" fill="#FFFFFF" opacity="0.9"/>`;
+
+    const mane = kind === 'lion' ? `<circle cx="${cx}" cy="${cy}" r="${bodyR * (form === 1 ? 1.15 : form === 2 ? 1.3 : 1.5)}" fill="${p.dark}" opacity="0.5"/>` : '';
+    const bellyPatch = ['panda', 'penguin', 'koala'].includes(kind) ? '' : `<ellipse cx="${cx}" cy="${cy + bodyR * 0.5}" rx="${bodyR * 0.55}" ry="${bodyR * 0.32}" fill="${p.accent}" opacity="0.55"/>`;
+
     return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-      ${tail}${wing('L')}${wing('R')}${crest}
+      ${tail}${mane}${wings}${ears}
       <circle cx="${cx}" cy="${cy}" r="${bodyR}" fill="${p.base}"/>
-      <polygon points="${cx + bodyR - 2},${cy} ${cx + bodyR + 10},${cy - 3} ${cx + bodyR + 10},${cy + 3}" fill="${p.dark}"/>
-      <circle cx="${cx + 4}" cy="${cy - 4}" r="${eyeR}" fill="${p.dark}"/>
-      ${armorAndElement(cx, cy, bodyR, form, element, p.accent)}
+      ${bellyPatch}${marking}
+      ${eyeGlow}${eyeWhite}
+      <circle cx="${cx - eyeGapX}" cy="${eyeY}" r="${pupilR}" fill="${p.dark}"/>
+      <circle cx="${cx + eyeGapX}" cy="${eyeY}" r="${pupilR}" fill="${p.dark}"/>
+      ${snout}
+      ${armorAndElement(cx, cy, bodyR, form, element, p.accent, cy + bodyR * 0.18)}
     </svg>`;
   }
-  function boulderkinSVG(p, form, element) {
-    const s = form === 1 ? 20 : form === 2 ? 26 : 32;
-    const cx = 60, cy = 64;
-    const plateLines = form >= 2 ? `<line x1="${cx - s}" y1="${cy}" x2="${cx + s}" y2="${cy}" stroke="${p.dark}" stroke-width="2" opacity="0.4"/>` : '';
-    const spikesTop = form === 3 ? Array.from({ length: 3 }).map((_, i) => {
-      const x = cx - s * 0.5 + i * s * 0.5;
-      return `<polygon points="${x - 6},${cy - s + 4} ${x},${cy - s - 14} ${x + 6},${cy - s + 4}" fill="${p.accent}"/>`;
-    }).join('') : '';
-    const legR = form === 1 ? 6 : form === 2 ? 7 : 8;
-    const legs = `<circle cx="${cx - s * 0.5}" cy="${cy + s - 2}" r="${legR}" fill="${p.dark}"/><circle cx="${cx + s * 0.5}" cy="${cy + s - 2}" r="${legR}" fill="${p.dark}"/>`;
-    const rx = s, ry = s * 0.85;
+  function quadrupedSVG(p, form, element, kind) {
+    const bodyW = form === 1 ? 26 : form === 2 ? 32 : 38;
+    const bodyH = form === 1 ? 16 : form === 2 ? 19 : 22;
+    const cx = 60, cy = form === 1 ? 72 : form === 2 ? 70 : 68;
+    const headR = form === 1 ? 15 : form === 2 ? 18 : 21;
+    const headCx = cx, headCy = cy - bodyH - headR * 0.55;
+    const earR = headR * 0.4;
+    const earY = headCy - headR - earR * 0.4;
+    const earGapX = headR * 0.55;
+
+    const oneEar = (ex) => {
+      switch (kind) {
+        case 'elephant':
+          return `<ellipse cx="${ex}" cy="${headCy}" rx="${headR * 0.7}" ry="${headR * 0.9}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/>`;
+        case 'unicorn':
+          return `<polygon points="${ex - earR * 0.8},${earY + earR} ${ex},${earY - earR * 1.4} ${ex + earR * 0.8},${earY + earR}" fill="${p.base}" stroke="${p.dark}" stroke-width="1"/>`;
+        case 'pig':
+          return `<ellipse cx="${ex}" cy="${earY + earR * 0.6}" rx="${earR * 0.7}" ry="${earR * 1.1}" fill="${p.base}" stroke="${p.dark}" stroke-width="1"/>`;
+        case 'hamster':
+          return `<circle cx="${ex}" cy="${earY}" r="${earR * 0.8}" fill="${p.base}" stroke="${p.dark}" stroke-width="1"/>`;
+        case 'tiger':
+          return `<polygon points="${ex - earR * 0.7},${earY + earR} ${ex},${earY - earR * 1.2} ${ex + earR * 0.7},${earY + earR}" fill="${p.base}" stroke="${p.dark}" stroke-width="1"/>`;
+        default:
+          return `<circle cx="${ex}" cy="${earY}" r="${earR}" fill="${p.base}"/>`;
+      }
+    };
+    const ears = kind === 'elephant'
+      ? oneEar(headCx - headR * 0.95) + oneEar(headCx + headR * 0.95)
+      : oneEar(headCx - earGapX) + oneEar(headCx + earGapX);
+
+    const legR = form === 1 ? 5 : form === 2 ? 6 : 7;
+    const legY = cy + bodyH - 2;
+    const legXs = [cx - bodyW * 0.55, cx - bodyW * 0.18, cx + bodyW * 0.18, cx + bodyW * 0.55];
+    const legs = legXs.map(lx => `<circle cx="${lx}" cy="${legY}" r="${legR}" fill="${p.dark}"/>`).join('');
+
+    let tail = '';
+    const tailX = cx - bodyW * 0.9, tailY = cy;
+    switch (kind) {
+      case 'pig':
+        tail = `<path d="M ${tailX} ${tailY} q -8 -2 -6 -8 q 2 6 8 4" stroke="${p.dark}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+        break;
+      case 'hamster':
+        tail = `<circle cx="${tailX - 2}" cy="${tailY + 4}" r="3" fill="${p.dark}"/>`;
+        break;
+      case 'tiger':
+        tail = `<path d="M ${tailX} ${tailY} Q ${tailX - 20 - form * 3} ${tailY - 6} ${tailX - 16 - form * 3} ${tailY - 24 - form * 4}" stroke="${p.base}" stroke-width="${5 + form}" fill="none" stroke-linecap="round"/>`;
+        break;
+      case 'elephant':
+        tail = `<path d="M ${tailX} ${tailY} Q ${tailX - 12} ${tailY + 8} ${tailX - 10} ${tailY + 18}" stroke="${p.dark}" stroke-width="2.5" fill="none" stroke-linecap="round"/>`;
+        break;
+      case 'unicorn':
+        tail = `<path d="M ${tailX} ${tailY} Q ${tailX - 22 - form * 4} ${tailY - 4} ${tailX - 18 - form * 4} ${tailY + 20 + form * 3}" stroke="${p.accent}" stroke-width="${6 + form}" fill="none" stroke-linecap="round"/>`;
+        break;
+    }
+
+    let snout = '';
+    switch (kind) {
+      case 'pig':
+        snout = `<ellipse cx="${headCx}" cy="${headCy + headR * 0.35}" rx="${headR * 0.42}" ry="${headR * 0.32}" fill="${p.accent}"/><circle cx="${headCx - headR * 0.15}" cy="${headCy + headR * 0.35}" r="1.8" fill="${p.dark}"/><circle cx="${headCx + headR * 0.15}" cy="${headCy + headR * 0.35}" r="1.8" fill="${p.dark}"/>`;
+        break;
+      case 'hamster':
+        snout = `<circle cx="${headCx - headR * 0.55}" cy="${headCy + headR * 0.15}" r="${headR * 0.35}" fill="${p.accent}" opacity="0.7"/><circle cx="${headCx + headR * 0.55}" cy="${headCy + headR * 0.15}" r="${headR * 0.35}" fill="${p.accent}" opacity="0.7"/><circle cx="${headCx}" cy="${headCy + headR * 0.4}" r="1.8" fill="#E88"/>`;
+        break;
+      case 'tiger':
+        snout = `<circle cx="${headCx}" cy="${headCy + headR * 0.4}" r="2" fill="${p.dark}"/>`;
+        break;
+      case 'elephant':
+        snout = `<path d="M ${headCx} ${headCy + headR * 0.3} Q ${headCx - headR * 0.15} ${headCy + headR * 1.3} ${headCx + headR * 0.25} ${headCy + headR * 1.5}" stroke="${p.base}" stroke-width="${headR * 0.35}" fill="none" stroke-linecap="round"/>`;
+        break;
+      case 'unicorn':
+        snout = `<ellipse cx="${headCx}" cy="${headCy + headR * 0.45}" rx="${headR * 0.3}" ry="${headR * 0.22}" fill="${p.accent}" opacity="0.6"/>`;
+        break;
+    }
+
+    let marking = '';
+    if (kind === 'tiger') {
+      marking = Array.from({ length: 3 }).map((_, i) => {
+        const sx = cx - bodyW * 0.5 + i * bodyW * 0.5;
+        return `<path d="M ${sx} ${cy - bodyH * 0.7} Q ${sx + 6} ${cy} ${sx} ${cy + bodyH * 0.7}" stroke="${p.dark}" stroke-width="3" fill="none" opacity="0.6"/>`;
+      }).join('');
+    }
+    if (kind === 'elephant' && form >= 2) {
+      marking = `<path d="M ${headCx - headR * 0.6} ${headCy + headR * 0.75} L ${headCx - headR * 0.75} ${headCy + headR * 1.15}" stroke="#F4F4F4" stroke-width="3" stroke-linecap="round"/><path d="M ${headCx + headR * 0.6} ${headCy + headR * 0.75} L ${headCx + headR * 0.75} ${headCy + headR * 1.15}" stroke="#F4F4F4" stroke-width="3" stroke-linecap="round"/>`;
+    }
+    if (kind === 'unicorn') {
+      marking = `<polygon points="${headCx - 3},${headCy - headR * 0.7} ${headCx + 3},${headCy - headR * 0.7} ${headCx},${headCy - headR * 1.6}" fill="${p.accent}"/>` +
+        (form >= 2 ? `<path d="M ${headCx - headR * 0.3} ${headCy - headR * 0.5} Q ${headCx - headR * 0.9} ${headCy} ${headCx - headR * 0.5} ${headCy + headR * 0.6}" stroke="${p.accent}" stroke-width="4" fill="none" stroke-linecap="round" opacity="0.85"/>` : '');
+    }
+
+    const eyeR = form === 1 ? 2.6 : form === 2 ? 3 : 3.5;
+    const eyeGlow = form === 3 ? `<circle cx="${headCx}" cy="${headCy - headR * 0.05}" r="${eyeR + 3}" fill="${p.accent}" opacity="0.3"/>` : '';
+
     return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-      ${legs}${spikesTop}
-      <rect x="${cx - rx}" y="${cy - ry}" width="${rx * 2}" height="${ry * 2}" rx="${form === 1 ? 10 : form === 2 ? 8 : 6}" fill="${p.base}" stroke="${p.dark}" stroke-width="2"/>
-      ${plateLines}
-      <rect x="${cx - rx * 0.5}" y="${cy - ry * 0.35}" width="${rx}" height="${ry * 0.5}" rx="4" fill="${p.accent}" opacity="0.85"/>
-      <circle cx="${cx - 8}" cy="${cy - 4}" r="${form === 1 ? 3 : form === 2 ? 3.4 : 4}" fill="${p.dark}"/>
-      <circle cx="${cx + 8}" cy="${cy - 4}" r="${form === 1 ? 3 : form === 2 ? 3.4 : 4}" fill="${p.dark}"/>
-      ${armorAndElement(cx, cy, s, form, element, p.accent)}
+      ${tail}${ears}
+      ${legs}
+      <ellipse cx="${cx}" cy="${cy}" rx="${bodyW}" ry="${bodyH}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.5"/>
+      ${marking}
+      <circle cx="${headCx}" cy="${headCy}" r="${headR}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.5"/>
+      ${eyeGlow}
+      <circle cx="${headCx - headR * 0.35}" cy="${headCy - headR * 0.05}" r="${eyeR}" fill="${p.dark}"/>
+      ${snout}
+      ${armorAndElement(cx, cy + bodyH * 0.15, bodyW * 0.9, form, element, p.accent)}
     </svg>`;
+  }
+  function shellSVG(p, form, element, kind) {
+    const shellR = form === 1 ? 22 : form === 2 ? 28 : 34;
+    const cx = 60, cy = form === 1 ? 68 : form === 2 ? 64 : 60;
+    const headR = form === 1 ? 9 : form === 2 ? 10 : 12;
+    const headX = cx + shellR + headR * 0.3, headY = cy - shellR * 0.1;
+    const legR = form === 1 ? 5 : form === 2 ? 6 : 7;
+    const legs = [[-0.7, 0.8], [0.7, 0.8], [-0.85, -0.4], [0.85, -0.4]].map(([dx, dy]) => `<circle cx="${cx + dx * shellR}" cy="${cy + dy * shellR * 0.7 + shellR * 0.5}" r="${legR}" fill="${p.dark}"/>`).join('');
+    const hexPattern = Array.from({ length: form }).map((_, i) => {
+      const r = shellR * (0.35 + i * 0.25);
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${p.dark}" stroke-width="1.5" opacity="0.4"/>`;
+    }).join('');
+    const spikes = form === 3 ? Array.from({ length: 5 }).map((_, i) => {
+      const ang = -Math.PI / 2 + (i - 2) * 0.5;
+      const bx = cx + Math.cos(ang) * shellR * 0.7, by = cy + Math.sin(ang) * shellR * 0.7;
+      const tx = cx + Math.cos(ang) * (shellR + 12), ty = cy + Math.sin(ang) * (shellR + 12);
+      return `<polygon points="${bx - 4},${by} ${tx},${ty} ${bx + 4},${by}" fill="${p.accent}"/>`;
+    }).join('') : '';
+    const tail = `<path d="M ${cx - shellR + 4} ${cy + shellR - 6} Q ${cx - shellR - 10} ${cy + shellR} ${cx - shellR - 8} ${cy + shellR + 8}" stroke="${p.dark}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
+    const eyeR = form === 1 ? 2.4 : form === 2 ? 2.8 : 3.2;
+    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tail}${legs}
+      <circle cx="${cx}" cy="${cy}" r="${shellR}" fill="${p.dark}" opacity="0.85"/>
+      <circle cx="${cx}" cy="${cy}" r="${shellR * 0.9}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.5"/>
+      ${hexPattern}${spikes}
+      <circle cx="${headX}" cy="${headY}" r="${headR}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.5"/>
+      <circle cx="${headX + 3}" cy="${headY - 2}" r="${eyeR}" fill="${p.dark}"/>
+      <polygon points="${headX + headR - 2},${headY} ${headX + headR + 6},${headY - 2} ${headX + headR + 6},${headY + 2}" fill="#F5A623"/>
+      ${armorAndElement(cx, cy, shellR, form, element, p.accent)}
+    </svg>`;
+  }
+  function aquaticSVG(p, form, element, kind) {
+    const len = form === 1 ? 46 : form === 2 ? 58 : 70;
+    const amp = form === 1 ? 6 : form === 2 ? 9 : 12;
+    const cx = 60, cy = 64;
+    const bodyPath = `M ${cx - len / 2} ${cy} Q ${cx - len / 4} ${cy - amp} ${cx + len * 0.1} ${cy} Q ${cx + len * 0.3} ${cy + amp * 0.6} ${cx + len / 2} ${cy - amp * 0.3}`;
+    const finH = form === 1 ? 10 : form === 2 ? 14 : 20;
+    const dorsalFin = `<polygon points="${cx - 4},${cy - amp * 0.4} ${cx + 6},${cy - amp * 0.4 - finH} ${cx + 14},${cy - amp * 0.4}" fill="${p.dark}"/>`;
+    const tailFluke = `<polygon points="${cx - len / 2},${cy} ${cx - len / 2 - 12},${cy - 10 - form * 2} ${cx - len / 2 - 4},${cy} ${cx - len / 2 - 12},${cy + 10 + form * 2}" fill="${p.dark}"/>`;
+    const headR = form === 1 ? 9 : form === 2 ? 11 : 13;
+    const headX = cx + len / 2, headY = cy - amp * 0.3;
+    const beak = `<ellipse cx="${headX + headR * 0.9}" cy="${headY + 2}" rx="${headR * 0.6}" ry="${headR * 0.35}" fill="${p.dark}" opacity="0.8"/>`;
+    const eyeR = form === 1 ? 2.2 : form === 2 ? 2.6 : 3;
+    const finFX = form === 3 ? `<path d="M ${cx - len * 0.3} ${cy + amp + 8} Q ${cx} ${cy + amp} ${cx + len * 0.3} ${cy + amp + 8}" stroke="${p.accent}" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>` : '';
+    return `<svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+      ${tailFluke}
+      <path d="${bodyPath}" stroke="${p.base}" stroke-width="${form === 1 ? 15 : form === 2 ? 19 : 23}" fill="none" stroke-linecap="round"/>
+      ${dorsalFin}${finFX}
+      <circle cx="${headX}" cy="${headY}" r="${headR}" fill="${p.base}"/>
+      ${beak}
+      <circle cx="${headX - 2}" cy="${headY - 3}" r="${eyeR}" fill="${p.dark}"/>
+      ${armorAndElement(headX - headR * 0.3, headY, headR * 1.6, form, element, p.accent)}
+    </svg>`;
+  }
+  function puffSVG(p, form, element, kind) { return roundMascotSVG(p, form, element, kind); }
+  function shardSVG(p, form, element, kind) { return roundMascotSVG(p, form, element, kind); }
+  function rivulonSVG(p, form, element, kind) { return quadrupedSVG(p, form, element, kind); }
+  function wingtailSVG(p, form, element, kind) {
+    if (kind === 'turtle') return shellSVG(p, form, element, kind);
+    if (kind === 'unicorn') return quadrupedSVG(p, form, element, kind);
+    return roundMascotSVG(p, form, element, kind);
+  }
+  function boulderkinSVG(p, form, element, kind) {
+    if (kind === 'dolphin') return aquaticSVG(p, form, element, kind);
+    return roundMascotSVG(p, form, element, kind);
   }
   const FAMILY_RENDERERS = { puff: puffSVG, shard: shardSVG, rivulon: rivulonSVG, wingtail: wingtailSVG, boulderkin: boulderkinSVG };
   function renderPetArt(speciesId, form) {
     const design = PET_DESIGN_BY_ID[speciesId] || PET_SPECIES[0];
     const palette = ELEMENT_PALETTES[design.element];
-    return FAMILY_RENDERERS[design.family](palette, form, design.element);
+    return FAMILY_RENDERERS[design.family](palette, form, design.element, design.kind);
   }
   // Rubric v2 (Benson's expanded classroom rubric) - 5 groups covering collaboration, responsibility/
   // preparation, creativity, safety, and integrity. The source rubric gave some categories a point RANGE
