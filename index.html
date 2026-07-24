@@ -154,8 +154,9 @@
   /* Wraps every rendered creature SVG so it always fills exactly the font-size of whatever context it's
      dropped into (card, leaderboard row, projector, pickers) - one rule handles sizing everywhere instead
      of a bespoke width/height per usage site. */
-  .pet-art-box { display: inline-block; width: 1em; height: 1em; vertical-align: middle; }
+  .pet-art-box { display: inline-block; width: 1em; height: 1em; vertical-align: middle; overflow: hidden; }
   .pet-art-box svg { width: 100%; height: 100%; display: block; }
+  .pet-art-box .sprite { width: 100%; height: 100%; display: block; object-fit: contain; background-color: transparent; }
   .detail-visual-wrap { width: 100%; }
   .detail-visual-wrap .pet-aura { width: 150px; height: 150px; }
   /* Evolution tiers - the whole CARD changes look (border/background/glow), not just the emoji, so a
@@ -631,14 +632,14 @@
   };
   const PET_SPECIES = [
     { id: '🐱', name: 'Emberkit',    family: 'puff',       element: 'fire',  kind: 'cat' },
-    { id: '🐶', name: 'Tidepup',     family: 'puff',       element: 'water', kind: 'dog' },
+    { id: '🐶', name: 'Tidepup',     family: 'puff',       element: 'water', kind: 'otter' },
     { id: '🐰', name: 'Sparkit',     family: 'puff',       element: 'storm', kind: 'rabbit' },
     { id: '🐼', name: 'Gustbun',     family: 'puff',       element: 'wind',  kind: 'panda' },
     { id: '🐲', name: 'Rubycore',    family: 'shard',      element: 'fire',  kind: 'dragon' },
     { id: '🦊', name: 'Aquashard',   family: 'shard',      element: 'water', kind: 'fox' },
     { id: '🐨', name: 'Voltgem',     family: 'shard',      element: 'storm', kind: 'koala' },
     { id: '🐸', name: 'Zephyrshard', family: 'shard',      element: 'wind',  kind: 'frog' },
-    { id: '🐷', name: 'Cinderail',   family: 'rivulon',    element: 'fire',  kind: 'pig' },
+    { id: '🐷', name: 'Cinderail',   family: 'rivulon',    element: 'fire',  kind: 'ram' },
     { id: '🐹', name: 'Tiderill',    family: 'rivulon',    element: 'water', kind: 'hamster' },
     { id: '🐯', name: 'Squallwisp',  family: 'rivulon',    element: 'storm', kind: 'tiger' },
     { id: '🐘', name: 'Galewisp',    family: 'rivulon',    element: 'wind',  kind: 'elephant' },
@@ -718,6 +719,8 @@
           return `<polygon points="${ex - earR},${earY + earR} ${ex},${earY - earR * 1.6} ${ex + earR},${earY + earR}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/><polygon points="${ex - earR * 0.45},${earY + earR * 0.55} ${ex},${earY - earR * 0.55} ${ex + earR * 0.45},${earY + earR * 0.55}" fill="${p.accent}" opacity="0.85"/>`;
         case 'dog':
           return `<ellipse cx="${ex}" cy="${earY + earR}" rx="${earR * 0.6}" ry="${earR * 1.5}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/>`;
+        case 'otter':
+          return `<circle cx="${ex}" cy="${earY + earR * 0.6}" r="${earR * 0.7}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/>`;
         case 'rabbit':
           return `<ellipse cx="${ex}" cy="${earY - earR * 1.2}" rx="${earR * 0.4}" ry="${earR * 2.1}" fill="${p.base}" stroke="${p.dark}" stroke-width="1.2"/><ellipse cx="${ex}" cy="${earY - earR * 1.2}" rx="${earR * 0.18}" ry="${earR * 1.6}" fill="${p.accent}" opacity="0.8"/>`;
         case 'panda':
@@ -750,6 +753,9 @@
         break;
       case 'dog':
         tail = `<path d="M ${tailBaseX} ${tailBaseY} Q ${cx + bodyR + 16 + form * 3} ${cy + bodyR + 6} ${cx + bodyR + 10 + form * 3} ${cy + bodyR - 18 - form * 4}" stroke="${p.base}" stroke-width="${6 + form}" fill="none" stroke-linecap="round"/>`;
+        break;
+      case 'otter':
+        tail = `<path d="M ${tailBaseX} ${tailBaseY} Q ${cx + bodyR + 26 + form * 5} ${cy + bodyR + 2} ${cx + bodyR + 22 + form * 5} ${cy + bodyR - 20 - form * 4}" stroke="${p.base}" stroke-width="${9 + form * 1.3}" fill="none" stroke-linecap="round"/>`;
         break;
       case 'rabbit':
         tail = `<circle cx="${cx + bodyR - 2}" cy="${cy + bodyR - 2}" r="${5 + form}" fill="#FFFFFF" stroke="${p.dark}" stroke-width="1"/>`;
@@ -791,7 +797,7 @@
     let snout = '';
     const noseY = cy + bodyR * 0.22;
     switch (kind) {
-      case 'dog': case 'fox': case 'wolf':
+      case 'dog': case 'fox': case 'wolf': case 'otter':
         snout = `<ellipse cx="${cx}" cy="${noseY + 4}" rx="${bodyR * 0.26}" ry="${bodyR * 0.18}" fill="${kind === 'fox' ? '#FFFFFF' : p.accent}" opacity="0.9"/><circle cx="${cx}" cy="${noseY + 4}" r="2.4" fill="${p.dark}"/>`;
         break;
       case 'panda':
@@ -859,6 +865,10 @@
           return `<polygon points="${ex - earR * 0.8},${earY + earR} ${ex},${earY - earR * 1.4} ${ex + earR * 0.8},${earY + earR}" fill="${p.base}" stroke="${p.dark}" stroke-width="1"/>`;
         case 'pig':
           return `<ellipse cx="${ex}" cy="${earY + earR * 0.6}" rx="${earR * 0.7}" ry="${earR * 1.1}" fill="${p.base}" stroke="${p.dark}" stroke-width="1"/>`;
+        case 'ram': {
+          const dir = ex >= headCx ? 1 : -1;
+          return `<path d="M ${ex} ${earY} Q ${ex + dir * earR * 1.6} ${earY + earR * 0.3} ${ex + dir * earR * 1.1} ${earY + earR * 1.6} Q ${ex + dir * earR * 0.5} ${earY + earR * 2.2} ${ex} ${earY + earR * 1.8}" fill="none" stroke="${p.accent}" stroke-width="${earR * 0.55}" stroke-linecap="round"/>`;
+        }
         case 'hamster':
           return `<circle cx="${ex}" cy="${earY}" r="${earR * 0.8}" fill="${p.base}" stroke="${p.dark}" stroke-width="1"/>`;
         case 'tiger':
@@ -882,6 +892,9 @@
       case 'pig':
         tail = `<path d="M ${tailX} ${tailY} q -8 -2 -6 -8 q 2 6 8 4" stroke="${p.dark}" stroke-width="3" fill="none" stroke-linecap="round"/>`;
         break;
+      case 'ram':
+        tail = `<ellipse cx="${tailX - 3}" cy="${tailY + 5}" rx="4" ry="5" fill="${p.base}" stroke="${p.dark}" stroke-width="1"/>`;
+        break;
       case 'hamster':
         tail = `<circle cx="${tailX - 2}" cy="${tailY + 4}" r="3" fill="${p.dark}"/>`;
         break;
@@ -900,6 +913,9 @@
     switch (kind) {
       case 'pig':
         snout = `<ellipse cx="${headCx}" cy="${headCy + headR * 0.35}" rx="${headR * 0.42}" ry="${headR * 0.32}" fill="${p.accent}"/><circle cx="${headCx - headR * 0.15}" cy="${headCy + headR * 0.35}" r="1.8" fill="${p.dark}"/><circle cx="${headCx + headR * 0.15}" cy="${headCy + headR * 0.35}" r="1.8" fill="${p.dark}"/>`;
+        break;
+      case 'ram':
+        snout = `<ellipse cx="${headCx}" cy="${headCy + headR * 0.4}" rx="${headR * 0.3}" ry="${headR * 0.22}" fill="#FFFFFF" opacity="0.85"/><circle cx="${headCx}" cy="${headCy + headR * 0.4}" r="1.6" fill="${p.dark}"/>`;
         break;
       case 'hamster':
         snout = `<circle cx="${headCx - headR * 0.55}" cy="${headCy + headR * 0.15}" r="${headR * 0.35}" fill="${p.accent}" opacity="0.7"/><circle cx="${headCx + headR * 0.55}" cy="${headCy + headR * 0.15}" r="${headR * 0.35}" fill="${p.accent}" opacity="0.7"/><circle cx="${headCx}" cy="${headCy + headR * 0.4}" r="1.8" fill="#E88"/>`;
@@ -1011,8 +1027,33 @@
     return roundMascotSVG(p, form, element, kind);
   }
   const FAMILY_RENDERERS = { puff: puffSVG, shard: shardSVG, rivulon: rivulonSVG, wingtail: wingtailSVG, boulderkin: boulderkinSVG };
+
+  // ---------- Illustrated art (Benson's friend's actual cropped PNGs, one folder per species) ----------
+  // Each finished species gets its own folder named "NN_SpeciesName_kind" sitting next to this file's
+  // deployed location, containing stage1.png / stage2.png / stage3.png (form 1/2/3). ART_BASE is the
+  // relative hop from wherever index.html currently lives to those folders - '../' while this file is
+  // still in outputs/ during development, '' once index.html is moved to sit next to the folders for
+  // deployment (see the deploy note near the bottom of this file). Species with no folder listed yet
+  // (everything except the 4 below) simply fall through to the original procedural SVG renderer further
+  // up this file (see renderPetArt) - add a line here the moment a new folder arrives, no other code
+  // needs to change.
+  const ART_BASE = '';
+  const PET_ART_FOLDERS = {
+    cat:     '01_Emberkit_cat',
+    tiger:   '02_Squallwisp_tiger',
+    unicorn: '03_Emberwing_unicorn',
+    panda:   '04_Gustbun_panda',
+  };
+  function spriteMarkup(kind, form) {
+    const folder = PET_ART_FOLDERS[kind];
+    if (!folder) return null;
+    return `<img class="sprite" src="${ART_BASE}${folder}/stage${form}.png" alt="" draggable="false">`;
+  }
   function renderPetArt(speciesId, form) {
     const design = PET_DESIGN_BY_ID[speciesId] || PET_SPECIES[0];
+    const sprite = spriteMarkup(design.kind, form);
+    if (sprite) return sprite;
+    // Fallback for every species without a finished art folder yet - original procedural SVG.
     const palette = ELEMENT_PALETTES[design.element];
     return FAMILY_RENDERERS[design.family](palette, form, design.element, design.kind);
   }
