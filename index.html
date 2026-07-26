@@ -1381,7 +1381,9 @@
     if (lvl.stage < 0) return { isEgg: false, svg: renderPetArt(st.species, formLevel), suffixText: ' ' + lvl.emoji, extraClass: '', cardClass: '', filterExtra: 'grayscale(0.4) opacity(0.75)', scale: 0.9, aura: '' };
     const tier = visualTier(lvl.stage);
     const cfg = TIER_CONFIG[tier];
-    return { isEgg: false, svg: renderPetArt(st.species, formLevel), suffixText: '', extraClass: '', cardClass: cfg.cardClass, scale: cfg.scale, aura: powerAuraSvg(tier) };
+    // aura: '' - the tier power-aura shape (star/wings/etc behind the pet) is disabled per a look test;
+    // change back to powerAuraSvg(tier) to restore it.
+    return { isEgg: false, svg: renderPetArt(st.species, formLevel), suffixText: '', extraClass: '', cardClass: cfg.cardClass, scale: cfg.scale, aura: '' };
   }
   function petGlyphStyle(st, glyph) {
     const base = colorFilter(st.color);
