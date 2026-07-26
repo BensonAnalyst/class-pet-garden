@@ -1659,12 +1659,30 @@
     return last3.reduce((sum, h) => sum + h.delta, 0);
   }
 
-  // Rolling-window period totals (non-destructive - full history is always kept,
-  // this just filters which entries count toward the number shown for a given view)
+  // Calendar-aligned period totals (non-destructive - full history is always kept, this just filters
+  // which entries count toward the number shown for a given view). "Week"/"Month" reset on real
+  // calendar boundaries (Monday 00:00 local time / the 1st of the month), not a rolling N-days-ago
+  // window - so "this week" always means the same Mon-Sun span a wall calendar would show, matching
+  // what a teacher means by "this week's leaderboard". Kept as reusable helpers since other calendar-
+  // based features (e.g. a weekly report, a real date picker) can build on the same start-of-period math.
+  function startOfCalendarWeek(ts) {
+    const d = new Date(ts);
+    const day = d.getDay(); // 0=Sun,1=Mon,...,6=Sat
+    const daysSinceMonday = (day === 0) ? 6 : day - 1;
+    d.setHours(0, 0, 0, 0);
+    d.setDate(d.getDate() - daysSinceMonday);
+    return d.getTime();
+  }
+  function startOfCalendarMonth(ts) {
+    const d = new Date(ts);
+    d.setHours(0, 0, 0, 0);
+    d.setDate(1);
+    return d.getTime();
+  }
   function periodCutoff(period) {
     const now = Date.now();
-    if (period === 'week') return now - 7 * 24 * 60 * 60 * 1000;
-    if (period === 'month') return now - 30 * 24 * 60 * 60 * 1000;
+    if (period === 'week') return startOfCalendarWeek(now);
+    if (period === 'month') return startOfCalendarMonth(now);
     return -Infinity; // 'all'
   }
   function pointsInPeriod(student, period) {
