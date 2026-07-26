@@ -156,12 +156,7 @@
      of a bespoke width/height per usage site. */
   .pet-art-box { display: inline-block; width: 1em; height: 1em; vertical-align: middle; overflow: hidden; }
   .pet-art-box svg { width: 100%; height: 100%; display: block; }
-  /* Stage 1 art was exported with a transparent background, but stage 2/3 art has a solid white
-     background baked into the PNG. mix-blend-mode:multiply makes white pixels blend away into
-     whatever's behind them (safe no-op on the already-transparent stage 1 art), so both look
-     consistent without needing the source images re-exported. Only removed inside the dark
-     projector overlay below, where multiplying against a dark backdrop would darken the art instead. */
-  .pet-art-box .sprite { width: 100%; height: 100%; display: block; object-fit: contain; background-color: transparent; mix-blend-mode: multiply; }
+  .pet-art-box .sprite { width: 100%; height: 100%; display: block; object-fit: contain; background-color: transparent; }
   .detail-visual-wrap { width: 100%; }
   .detail-visual-wrap .pet-aura { width: 150px; height: 150px; }
   /* Evolution tiers - the whole CARD changes look (border/background/glow), not just the emoji, so a
@@ -207,6 +202,18 @@
   }
   .quick-actions button.pos { background: var(--good); }
   .quick-actions button.neg { background: var(--bad); }
+
+  /* Shop */
+  .shop-item-row {
+    display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--border);
+  }
+  .shop-item-row:last-child { border-bottom: none; }
+  .shop-item-name { flex: 1; font-size: 14px; font-weight: 600; }
+  .shop-item-cost { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .shop-buy-btn {
+    background: var(--teal); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  }
+  .shop-buy-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
 
   .detail-history {
     max-height: 180px; overflow-y: auto; margin-top: 10px; font-size: 12px; border-top: 1px solid var(--border); padding-top: 8px;
@@ -327,10 +334,6 @@
     z-index: 50; color: white; flex-direction: column; align-items: center; padding: 30px 20px; overflow-y: auto;
   }
   #projectorOverlay.active { display: flex; }
-  /* The multiply trick above only works on light backgrounds - undo it here so stage 2/3 art isn't
-     darkened against this overlay's dark navy/teal gradient. Their white background will show as a
-     faint box on this screen only; everywhere else (dashboard, pickers, leaderboard) stays clean. */
-  #projectorOverlay .pet-art-box .sprite { mix-blend-mode: normal; }
   .proj-title { font-size: clamp(28px, 5vw, 48px); font-weight: 800; margin-bottom: 6px; text-align: center; }
   .proj-sub { font-size: clamp(14px, 2vw, 18px); opacity: 0.8; margin-bottom: 24px; }
   .proj-board { width: 100%; max-width: 900px; display: flex; flex-direction: column; gap: 10px; }
@@ -474,6 +477,17 @@
     </div>
 
     <div class="card">
+      <h2>🛍 Shop items</h2>
+      <p class="muted">What students can redeem with their wallet balance (their lifetime points minus whatever they've already spent — spending here never affects pet evolution or the leaderboard). Defaults are real-world classroom privileges you grant in person; edit freely.</p>
+      <div id="shopItemList"></div>
+      <div class="row" style="margin-top:12px;">
+        <input type="text" id="newShopItemName" placeholder="e.g. Homework pass">
+        <input type="number" id="newShopItemCost" placeholder="cost" style="max-width:80px;">
+      </div>
+      <button class="primary" id="addShopItemBtn">Add shop item</button>
+    </div>
+
+    <div class="card">
       <h2>Pet level thresholds</h2>
       <p class="muted">Points needed to reach each stage. Below 0 the pet becomes "Unwell"; below the critical line, "Critical".</p>
       <div id="thresholdInputs"></div>
@@ -568,6 +582,19 @@
   </div>
 </div>
 
+<!-- SHOP MODAL -->
+<div class="modal-overlay" id="shopModal">
+  <div class="modal">
+    <div class="modal-header"><h3>🛍 Shop</h3><button class="close-btn" data-close="shopModal">&times;</button></div>
+    <p class="muted">Wallet balance: <strong id="shopWalletBalance"></strong> — this is separate from their points total, so spending never affects pet evolution or the leaderboard.</p>
+    <div id="shopItemsGrid"></div>
+    <div id="shopRecentWrap" style="margin-top:14px; border-top:1px solid var(--border); padding-top:10px;">
+      <label style="margin-top:0;">Recently redeemed</label>
+      <div id="shopRecentList" class="detail-history"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ADOPTION CERTIFICATE MODAL -->
 <div class="modal-overlay" id="certModal">
   <div class="modal">
@@ -594,6 +621,7 @@
       <div id="detailLevel" class="muted"></div>
       <div id="detailPoints" style="font-weight:700; font-size:18px; margin-top:4px;"></div>
       <div class="progress-track" style="max-width:240px; margin:8px auto 0;"><div class="progress-fill" id="detailProgressFill" style="width:0%"></div></div>
+      <div id="detailWallet" class="muted" style="margin-top:8px; font-size:13px;"></div>
     </div>
     <label style="margin-top:14px;">Group</label>
     <select id="detailGroupSelect"></select>
@@ -607,6 +635,7 @@
       <button class="secondary" id="logCustomEventBtn" style="width:100%; margin-top:8px;">Log it</button>
     </div>
     <div class="detail-history" id="detailHistory"></div>
+    <button class="primary" id="visitShopBtn" style="margin-top:14px;">🛍 Visit Shop</button>
     <button class="secondary" id="customizePetBtn" style="width:100%; margin-top:10px;">🎨 Customize my pet</button>
     <button class="secondary" id="shareUpdateBtn" style="width:100%; margin-top:10px;">📤 Share update with parent</button>
     <button class="link" id="removeStudentBtn" style="color:var(--bad); margin-top:10px;">Remove this student from class</button>
@@ -1109,6 +1138,28 @@
     { name: 'Dishonesty / Lack of integrity', points: -3, group: 'Respect & Integrity' },
     { name: 'Misuse of classroom materials', points: -1, group: 'Respect & Integrity' },
   ];
+  // Shop items are redeemed with a student's WALLET balance (see walletBalance() below), a separate
+  // number from their lifetime points total. Lifetime points (totalPoints) never decreases from a
+  // purchase - it's permanent and drives pet evolution/leaderboard exactly as before. The wallet is
+  // simply "lifetime points earned minus lifetime points spent", so spending never undoes pet growth,
+  // it just spends down the balance available to shop with. These are real-world classroom privileges
+  // (redeemed in person by the teacher) rather than digital cosmetics, since that needs no new art
+  // pipeline and is the most broadly useful default - rename/reprice/add your own below in Settings,
+  // exactly like the point categories above.
+  const DEFAULT_SHOP_ITEMS = [
+    { name: 'Homework pass (skip one)', cost: 15 },
+    { name: 'Choose your own seat (1 day)', cost: 10 },
+    { name: 'Line leader for the day', cost: 8 },
+    { name: 'Extra 5 minutes of recess', cost: 12 },
+    { name: 'Class helper for the day', cost: 10 },
+    { name: 'Pick the class game or song', cost: 8 },
+    { name: 'Bring a small toy to school', cost: 10 },
+    { name: 'Lunch with the teacher', cost: 20 },
+    { name: 'Sit at the teacher\'s desk for a lesson', cost: 15 },
+    { name: 'Extra iPad/computer time (10 min)', cost: 15 },
+    { name: 'Mystery prize box', cost: 25 },
+    { name: '"Star of the Week" certificate', cost: 30 },
+  ];
   // 11-stage progression matching banchong.cn's own level-rules table (Lv.1-10 cumulative energy: 3,6,10,20,35,50,70,90,120,160)
   const DEFAULT_THRESHOLDS = [0, 3, 6, 10, 20, 35, 50, 70, 90, 120, 160];
   const DEFAULT_CRITICAL = -15; // at/below this, pet is "Critical" instead of just "Unwell"
@@ -1238,6 +1289,9 @@
   function freshCategoryId() {
     return 'cat_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
   }
+  function freshShopItemId() {
+    return 'shop_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7);
+  }
   function makeNewClass(name) {
     return {
       id: 'cls_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
@@ -1245,9 +1299,10 @@
       // .map() (not .slice()) so each class gets its own independent category objects with fresh ids -
       // sharing object references across classes would mean editing one class's category could corrupt another's.
       categories: DEFAULT_CATEGORIES.map(c => ({ id: freshCategoryId(), name: c.name, points: c.points, group: c.group })),
+      shopItems: DEFAULT_SHOP_ITEMS.map(i => ({ id: freshShopItemId(), name: i.name, cost: i.cost })),
       thresholds: DEFAULT_THRESHOLDS.slice(),
       criticalThreshold: DEFAULT_CRITICAL,
-      students: [], // {id, name, species, color, history:[{ts, label, delta}], groupId}
+      students: [], // {id, name, species, color, history:[{ts, label, delta}], groupId, purchases:[{ts,itemId,name,cost}]}
       battle: { rivalName: '', rivalAvg: null },
       hallOfFame: [],
       groups: [], // {id, name}
@@ -1269,6 +1324,7 @@
           id: 'cls_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
           className: parsed.className || 'My Class',
           categories: parsed.categories || DEFAULT_CATEGORIES.slice(),
+          shopItems: parsed.shopItems || DEFAULT_SHOP_ITEMS.map(i => ({ id: freshShopItemId(), name: i.name, cost: i.cost })),
           thresholds: (parsed.thresholds && parsed.thresholds.length === STAGE_LABELS.length) ? parsed.thresholds : DEFAULT_THRESHOLDS.slice(),
           criticalThreshold: parsed.criticalThreshold !== undefined ? parsed.criticalThreshold : DEFAULT_CRITICAL,
           students: parsed.students || [],
@@ -1279,6 +1335,7 @@
         migrated.students.forEach(st => {
           if (st.groupId === undefined) st.groupId = null;
           if (!st.color) st.color = 'Original';
+          if (!st.purchases) st.purchases = [];
         });
         return { currentClassId: migrated.id, classes: [migrated] };
       }
@@ -1304,6 +1361,14 @@
       points: cat.points,
       group: cat.group || 'General',
     }));
+    // Backfill shop for classes saved before the shop existed - fresh default list, and an empty
+    // purchase log per student (their existing points total is untouched either way).
+    if (!c.shopItems) {
+      c.shopItems = DEFAULT_SHOP_ITEMS.map(i => ({ id: freshShopItemId(), name: i.name, cost: i.cost }));
+    }
+    (c.students || []).forEach(st => {
+      if (!st.purchases) st.purchases = [];
+    });
   });
   let state = appState.currentClassId ? (appState.classes.find(c => c.id === appState.currentClassId) || null) : null;
 
@@ -1414,6 +1479,18 @@
 
   function totalPoints(student) {
     return student.history.reduce((sum, h) => sum + h.delta, 0);
+  }
+
+  // ---------- Wallet (shop currency) ----------
+  // Deliberately a DERIVED number, not its own stored field: wallet = lifetime points earned minus
+  // lifetime points spent in the shop. totalPoints() above (which drives pet evolution/leaderboard)
+  // is computed purely from student.history and is never touched by a purchase - only this separate
+  // number drops when they buy something, so spending in the shop can never undo pet growth.
+  function totalSpent(student) {
+    return (student.purchases || []).reduce((sum, p) => sum + p.cost, 0);
+  }
+  function walletBalance(student) {
+    return totalPoints(student) - totalSpent(student);
   }
 
   function recentMomentum(student) {
@@ -1580,7 +1657,7 @@
     if (!name) { alert('Please enter a student name.'); return; }
     state.students.push({
       id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-      name, species: selectedSpecies, color: selectedColor, history: [], groupId: null
+      name, species: selectedSpecies, color: selectedColor, history: [], groupId: null, purchases: []
     });
     saveState();
     closeModal('addStudentModal');
@@ -1832,6 +1909,7 @@
         color: 'Original',
         history: [],
         groupId,
+        purchases: [],
       });
       speciesIdx++;
     });
@@ -1876,6 +1954,7 @@
     const detailProgFillEl = document.getElementById('detailProgressFill');
     detailProgFillEl.className = 'progress-fill' + (detailProg.negative ? ' neg' : '');
     detailProgFillEl.style.width = detailProg.pct + '%';
+    document.getElementById('detailWallet').textContent = `🛍 ${walletBalance(st)} pts to spend`;
 
     const groupSelect = document.getElementById('detailGroupSelect');
     groupSelect.innerHTML = '<option value="">No group</option>' +
@@ -1930,6 +2009,59 @@
       `).join('');
     }
   }
+
+  function renderShop() {
+    const st = state.students.find(s => s.id === currentDetailId);
+    if (!st) return;
+    const balance = walletBalance(st);
+    document.getElementById('shopWalletBalance').textContent = balance + ' pts';
+
+    const grid = document.getElementById('shopItemsGrid');
+    grid.innerHTML = '';
+    (state.shopItems || []).forEach(item => {
+      const row = document.createElement('div');
+      row.className = 'shop-item-row';
+      const affordable = balance >= item.cost;
+      row.innerHTML = `
+        <span class="shop-item-name">${escapeHtml(item.name)}</span>
+        <span class="shop-item-cost">${item.cost} pts</span>
+      `;
+      const buyBtn = document.createElement('button');
+      buyBtn.className = 'shop-buy-btn';
+      buyBtn.textContent = affordable ? 'Buy' : 'Not enough pts';
+      buyBtn.disabled = !affordable;
+      buyBtn.addEventListener('click', () => {
+        if (walletBalance(st) < item.cost) return;
+        st.purchases.push({ ts: Date.now(), itemId: item.id, name: item.name, cost: item.cost });
+        saveState();
+        renderShop();
+        renderDetail();
+        showCelebration(`🛍 ${st.name} redeemed: ${item.name}!`);
+      });
+      row.appendChild(buyBtn);
+      grid.appendChild(row);
+    });
+
+    const recentList = document.getElementById('shopRecentList');
+    const recent = (st.purchases || []).slice().reverse().slice(0, 8);
+    if (recent.length === 0) {
+      recentList.innerHTML = '<div class="muted">No purchases yet.</div>';
+    } else {
+      recentList.innerHTML = recent.map(p => `
+        <div class="entry neg">
+          <span>${escapeHtml(p.name)}</span>
+          <span>-${p.cost}</span>
+        </div>
+      `).join('');
+    }
+  }
+  document.getElementById('visitShopBtn').addEventListener('click', () => {
+    const st = state.students.find(s => s.id === currentDetailId);
+    if (!st) return;
+    renderShop();
+    closeModal('detailModal');
+    document.getElementById('shopModal').classList.add('active');
+  });
   document.getElementById('removeStudentBtn').addEventListener('click', () => {
     if (!confirm('Remove this student from the class?')) return;
     state.students = state.students.filter(s => s.id !== currentDetailId);
@@ -2290,6 +2422,39 @@
     renderCategories();
   });
 
+  // ---------- Settings: shop items (flat list, no grouping needed) ----------
+  function renderShopItemsSettings() {
+    const list = document.getElementById('shopItemList');
+    list.innerHTML = '';
+    const chipRow = document.createElement('div');
+    chipRow.className = 'chip-list';
+    (state.shopItems || []).forEach(item => {
+      const chip = document.createElement('div');
+      chip.className = 'chip';
+      chip.innerHTML = `<span>${escapeHtml(item.name)} (${item.cost} pts)</span>`;
+      const rm = document.createElement('button');
+      rm.textContent = '✕';
+      rm.addEventListener('click', () => {
+        state.shopItems = state.shopItems.filter(i => i.id !== item.id);
+        saveState();
+        renderShopItemsSettings();
+      });
+      chip.appendChild(rm);
+      chipRow.appendChild(chip);
+    });
+    list.appendChild(chipRow);
+  }
+  document.getElementById('addShopItemBtn').addEventListener('click', () => {
+    const name = document.getElementById('newShopItemName').value.trim();
+    const cost = parseInt(document.getElementById('newShopItemCost').value, 10);
+    if (!name || isNaN(cost) || cost < 0) { alert('Enter a name and a cost of 0 or more.'); return; }
+    state.shopItems.push({ id: freshShopItemId(), name, cost });
+    saveState();
+    document.getElementById('newShopItemName').value = '';
+    document.getElementById('newShopItemCost').value = '';
+    renderShopItemsSettings();
+  });
+
   // ---------- Settings: thresholds ----------
   function renderThresholds() {
     const wrap = document.getElementById('thresholdInputs');
@@ -2383,6 +2548,7 @@
     document.getElementById('tabbar').style.display = 'flex';
     renderClassSwitcher();
     renderCategories();
+    renderShopItemsSettings();
     renderThresholds();
     renderGroups();
     renderDashboard();
