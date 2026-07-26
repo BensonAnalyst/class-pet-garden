@@ -209,6 +209,25 @@
   .student-card.tier-3 { border-color: #3498DB; background: linear-gradient(180deg, #ffffff, #EAF5FC); box-shadow: 0 0 0 2px rgba(52,152,219,0.15); animation: tier3Pulse 2.6s ease-in-out infinite; }
   .student-card.tier-4 { border-color: #9B59B6; background: linear-gradient(180deg, #ffffff, #F6EEFB); box-shadow: 0 0 14px rgba(155,89,182,0.4); animation: tier4Pulse 2.2s ease-in-out infinite; }
   .student-card.tier-5 { border-color: #F1C40F; background: linear-gradient(180deg, #FFFDF5, #FFF6D9); box-shadow: 0 0 18px rgba(241,196,15,0.55); animation: tierPulse 1.8s ease-in-out infinite; }
+  /* Equipped Frame cosmetic - this is the border around each student's WHOLE card, not just the pet
+     picture (a small ring on the picture reads as decorating the art, not the student's card - a card
+     border is what actually looks like "my card has a frame"). Comes after the tier-N rules above so a
+     purchased frame always wins over the automatic evolution-tier border/glow on the same element. */
+  .student-card.card-frame-bronze { border: 3px solid #cd7f32; background: linear-gradient(180deg, #fff, #f7ecdc); box-shadow: 0 0 0 3px #f0dcc0 inset, 0 4px 12px rgba(139,90,43,0.35); animation: none; }
+  .student-card.card-frame-silver { border: 3px solid #b8bcc2; background: linear-gradient(180deg, #fff, #f2f4f5); box-shadow: 0 0 0 3px #eef0f2 inset, 0 4px 12px rgba(0,0,0,0.2); animation: none; }
+  .student-card.card-frame-gold { border: 3px solid #d4af00; background: linear-gradient(180deg, #fffdf5, #fff3c4); box-shadow: 0 0 0 3px #fff3c4 inset, 0 4px 16px rgba(255,215,0,0.5); animation: none; }
+  .student-card.card-frame-neon { border: 3px solid #22e0ff; background: linear-gradient(180deg, #0c1a2b, #16283f); box-shadow: 0 0 14px 2px #22e0ff, 0 0 22px 4px #ff2fd6; animation: none; }
+  .student-card.card-frame-neon .name, .student-card.card-frame-neon .level, .student-card.card-frame-neon .points { color: #eaf9ff; }
+  .student-card.card-frame-rainbow { border: 3px solid #ff3b5c; background: #fffaf5; box-shadow: 0 4px 10px rgba(0,0,0,0.2); animation: rainbowCardBorder 4s linear infinite; }
+  @keyframes rainbowCardBorder {
+    0% { border-color: #ff3b5c; }
+    16% { border-color: #ff9f1c; }
+    33% { border-color: #ffd700; }
+    50% { border-color: #2ecc71; }
+    66% { border-color: #3498db; }
+    83% { border-color: #9b59b6; }
+    100% { border-color: #ff3b5c; }
+  }
   @keyframes tierPulse { 0%, 100% { box-shadow: 0 0 12px rgba(241,196,15,0.4); } 50% { box-shadow: 0 0 26px rgba(241,196,15,0.8); } }
   @keyframes tier3Pulse { 0%, 100% { box-shadow: 0 0 0 2px rgba(52,152,219,0.15); } 50% { box-shadow: 0 0 10px rgba(52,152,219,0.4); } }
   @keyframes tier4Pulse { 0%, 100% { box-shadow: 0 0 14px rgba(155,89,182,0.4); } 50% { box-shadow: 0 0 22px rgba(155,89,182,0.65); } }
@@ -1684,7 +1703,8 @@
       const glyph = petGlyph(st, lvl);
       const prog = progressToNextLevel(pts);
       const card = document.createElement('div');
-      card.className = 'student-card' + (lvl.stage < 0 ? ' sick' : '') + (glyph.cardClass ? ' ' + glyph.cardClass : '') + (st.id === justLeveledId ? ' level-up-burst' : '');
+      const equippedFrame = equippedItem(st, 'frame');
+      card.className = 'student-card' + (lvl.stage < 0 ? ' sick' : '') + (glyph.cardClass ? ' ' + glyph.cardClass : '') + (st.id === justLeveledId ? ' level-up-burst' : '') + (equippedFrame ? ' card-frame-' + equippedFrame.value : '');
       card.innerHTML = `
         ${lvl.stage < 0 ? `<div class="sick-badge">${lvl.label.toUpperCase()}</div>` : ''}
         <div class="pet-visual-wrap">
