@@ -505,6 +505,7 @@
         <button class="secondary lb-period-btn" data-period="week" style="flex:1;">This Week</button>
         <button class="secondary lb-period-btn" data-period="month" style="flex:1;">This Month</button>
       </div>
+      <div id="leaderboardPeriodRange" class="muted" style="text-align:center; font-size:12px; margin-top:6px;"></div>
       <div id="leaderboardList" style="margin-top:10px;"></div>
       <div id="groupPkList" style="display:none; margin-top:10px;"></div>
     </div>
@@ -2344,7 +2345,24 @@
     });
   });
 
+  // Spells out the actual calendar dates a period covers, right under the This Week/This Month buttons -
+  // proof (not just a claim) that "This Week" is a real Mon-Sun calendar span, not a rolling 7-day window.
+  function formatPeriodRangeLabel(period) {
+    if (period === 'week') {
+      const start = new Date(startOfCalendarWeek(Date.now()));
+      const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
+      const startStr = start.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const endStr = end.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      return `📅 Mon ${startStr} – Sun ${endStr}`;
+    }
+    if (period === 'month') {
+      const start = new Date(startOfCalendarMonth(Date.now()));
+      return `📅 ${start.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}`;
+    }
+    return 'Counting every point ever logged, no date cutoff.';
+  }
   function renderLeaderboard() {
+    document.getElementById('leaderboardPeriodRange').textContent = formatPeriodRangeLabel(leaderboardPeriod);
     if (leaderboardMode === 'group') { renderGroupPk(); return; }
     const wrap = document.getElementById('leaderboardList');
     if (state.students.length === 0) {
