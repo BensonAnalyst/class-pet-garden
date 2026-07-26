@@ -141,7 +141,7 @@
     cursor: pointer;
     position: relative;
   }
-  .student-card .pet-emoji { font-size: 40px; line-height: 1; }
+  .student-card .pet-emoji { font-size: 58px; line-height: 1; }
   .pet-egg-wobble { display: inline-block; animation: eggWobble 2.4s ease-in-out infinite; }
   @keyframes eggWobble { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
   /* Power aura - an original, hand-drawn SVG emblem layered behind the pet emoji. Since emoji can't be
@@ -149,7 +149,7 @@
      circle of leaves, then a jagged energy ring, then wings, then a full radiant crest - each tier is a
      different SHAPE and color, not just a bigger version of the last one. */
   .pet-visual-wrap { position: relative; display: inline-flex; align-items: center; justify-content: center; }
-  .pet-visual-wrap .pet-aura { position: absolute; width: 78px; height: 78px; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 0; }
+  .pet-visual-wrap .pet-aura { position: absolute; width: 112px; height: 112px; left: 50%; top: 50%; transform: translate(-50%, -50%); pointer-events: none; z-index: 0; }
   .pet-visual-wrap .pet-emoji { position: relative; z-index: 1; }
   /* Wraps every rendered creature SVG so it always fills exactly the font-size of whatever context it's
      dropped into (card, leaderboard row, projector, pickers) - one rule handles sizing everywhere instead
@@ -268,9 +268,9 @@
     100% { transform: scale(1); box-shadow: 0 0 0 rgba(241,196,15,0); }
   }
   .student-card.level-up-burst { animation: levelUpBurst 0.9s ease; }
-  .student-card .name { font-weight: 600; font-size: 14px; margin-top: 6px; }
-  .student-card .level { font-size: 11px; color: var(--muted); margin-top: 2px; }
-  .student-card .points { font-size: 12px; margin-top: 4px; font-weight: 700; }
+  .student-card .name { font-weight: 600; font-size: 12px; margin-top: 4px; }
+  .student-card .level { font-size: 9px; color: var(--muted); margin-top: 1px; }
+  .student-card .points { font-size: 10px; margin-top: 2px; font-weight: 700; }
   .student-card.sick { border-color: var(--bad); }
   .student-card .sick-badge {
     position: absolute; top: 6px; right: 8px; font-size: 11px; color: var(--bad); font-weight: 700;
