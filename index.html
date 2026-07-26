@@ -630,27 +630,31 @@
     storm: { base: '#6B6B9E', accent: '#FFE066', dark: '#302F52' },
     wind:  { base: '#5FC9C9', accent: '#EAFFFB', dark: '#2E7A7A' },
   };
+  // NOTE: this roster was rebuilt to match the 20 illustrated art folders exactly (01_..20_ in the repo
+  // root) - the friend's final set used some different species names/animals than the original draft
+  // (e.g. spider/cow/goat/monkey/chicken instead of dog/pig/mouse/lion/wolf), so names+kinds here are
+  // sourced directly from the folder names rather than the original placeholder list.
   const PET_SPECIES = [
     { id: '🐱', name: 'Emberkit',    family: 'puff',       element: 'fire',  kind: 'cat' },
-    { id: '🐶', name: 'Tidepup',     family: 'puff',       element: 'water', kind: 'otter' },
-    { id: '🐰', name: 'Sparkit',     family: 'puff',       element: 'storm', kind: 'rabbit' },
-    { id: '🐼', name: 'Gustbun',     family: 'puff',       element: 'wind',  kind: 'panda' },
-    { id: '🐲', name: 'Rubycore',    family: 'shard',      element: 'fire',  kind: 'dragon' },
-    { id: '🦊', name: 'Aquashard',   family: 'shard',      element: 'water', kind: 'fox' },
-    { id: '🐨', name: 'Voltgem',     family: 'shard',      element: 'storm', kind: 'koala' },
-    { id: '🐸', name: 'Zephyrshard', family: 'shard',      element: 'wind',  kind: 'frog' },
-    { id: '🐷', name: 'Cinderail',   family: 'rivulon',    element: 'fire',  kind: 'ram' },
-    { id: '🐹', name: 'Tiderill',    family: 'rivulon',    element: 'water', kind: 'hamster' },
     { id: '🐯', name: 'Squallwisp',  family: 'rivulon',    element: 'storm', kind: 'tiger' },
-    { id: '🐘', name: 'Galewisp',    family: 'rivulon',    element: 'wind',  kind: 'elephant' },
     { id: '🦄', name: 'Emberwing',   family: 'wingtail',   element: 'fire',  kind: 'unicorn' },
+    { id: '🐼', name: 'Gustbun',     family: 'puff',       element: 'wind',  kind: 'panda' },
+    { id: '🐰', name: 'Sparkit',     family: 'puff',       element: 'storm', kind: 'rabbit' },
+    { id: '🦊', name: 'Aquashard',   family: 'shard',      element: 'water', kind: 'fox' },
+    { id: '🐘', name: 'Galewisp',    family: 'rivulon',    element: 'wind',  kind: 'elephant' },
     { id: '🐢', name: 'Mistwing',    family: 'wingtail',   element: 'water', kind: 'turtle' },
-    { id: '🦉', name: 'Stormcrest',  family: 'wingtail',   element: 'storm', kind: 'owl' },
-    { id: '🐧', name: 'Windplume',   family: 'wingtail',   element: 'wind',  kind: 'penguin' },
-    { id: '🐭', name: 'Magmaback',   family: 'boulderkin', element: 'fire',  kind: 'mouse' },
-    { id: '🦁', name: 'Coralback',   family: 'boulderkin', element: 'water', kind: 'lion' },
-    { id: '🐺', name: 'Thunderhide', family: 'boulderkin', element: 'storm', kind: 'wolf' },
-    { id: '🐬', name: 'Duneling',    family: 'boulderkin', element: 'wind',  kind: 'dolphin' },
+    { id: '🐲', name: 'Rubycore',    family: 'shard',      element: 'fire',  kind: 'dragon' },
+    { id: '🦉', name: 'Stormcrest',  family: 'shard',      element: 'storm', kind: 'owl' },
+    { id: '🕷️', name: 'Venomweb',    family: 'shard',      element: 'wind',  kind: 'spider' },
+    { id: '🐨', name: 'Frosthug',    family: 'puff',       element: 'water', kind: 'koala' },
+    { id: '🐸', name: 'Mosshopper',  family: 'boulderkin', element: 'wind',  kind: 'frog' },
+    { id: '🐹', name: 'Nutbolt',     family: 'rivulon',    element: 'storm', kind: 'hamster' },
+    { id: '🐧', name: 'Frostfin',    family: 'wingtail',   element: 'water', kind: 'penguin' },
+    { id: '🐬', name: 'Tidaldash',   family: 'boulderkin', element: 'water', kind: 'dolphin' },
+    { id: '🐮', name: 'Ironhorn',    family: 'rivulon',    element: 'fire',  kind: 'cow' },
+    { id: '🐐', name: 'Cliffhorn',   family: 'wingtail',   element: 'wind',  kind: 'goat' },
+    { id: '🐒', name: 'Voltail',     family: 'boulderkin', element: 'storm', kind: 'monkey' },
+    { id: '🐔', name: 'Dawncluck',   family: 'boulderkin', element: 'fire',  kind: 'chicken' },
   ];
   const SPECIES = PET_SPECIES.map(s => s.id);
   const PET_DESIGN_BY_ID = {};
@@ -1039,10 +1043,26 @@
   // needs to change.
   const ART_BASE = '';
   const PET_ART_FOLDERS = {
-    cat:     '01_Emberkit_cat',
-    tiger:   '02_Squallwisp_tiger',
-    unicorn: '03_Emberwing_unicorn',
-    panda:   '04_Gustbun_panda',
+    cat:      '01_Emberkit_cat',
+    tiger:    '02_Squallwisp_tiger',
+    unicorn:  '03_Emberwing_unicorn',
+    panda:    '04_Gustbun_panda',
+    rabbit:   '05_Sparkit_rabbit',
+    fox:      '06_Aquashard_fox',
+    elephant: '07_Galewisp_elephant',
+    turtle:   '08_Mistwing_turtle',
+    dragon:   '09_Rubycore_dragon',
+    owl:      '10_Stormcrest_owl',
+    spider:   '11_Venomweb_spider',
+    koala:    '12_Frosthug_koala',
+    frog:     '13_Mosshopper_frog',
+    hamster:  '14_Nutbolt_hamster',
+    penguin:  '15_Frostfin_penguin',
+    dolphin:  '16_Tidaldash_dolphin',
+    cow:      '17_Ironhorn_cow',
+    goat:     '18_Cliffhorn_goat',
+    monkey:   '19_Voltail_monkey',
+    chicken:  '20_Dawncluck_chicken',
   };
   function spriteMarkup(kind, form) {
     const folder = PET_ART_FOLDERS[kind];
