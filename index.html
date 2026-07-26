@@ -288,6 +288,18 @@
   .quick-actions button.pos { background: var(--good); }
   .quick-actions button.neg { background: var(--bad); }
 
+  /* Daily Check-in */
+  .checkin-row {
+    display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 4px; border-bottom: 1px dashed var(--border);
+  }
+  .checkin-row:last-child { border-bottom: none; }
+  .checkin-name { font-size: 13px; font-weight: 600; }
+  .checkin-toggle {
+    border: none; border-radius: 8px; padding: 6px 12px; font-size: 12px; font-weight: 700; cursor: pointer; color: white; min-width: 76px;
+  }
+  .checkin-toggle.on { background: var(--good); }
+  .checkin-toggle.off { background: var(--bad); }
+
   /* Shop */
   .shop-item-row {
     display: flex; align-items: center; gap: 10px; padding: 10px 4px; border-bottom: 1px solid var(--border);
@@ -477,7 +489,7 @@
   <div class="screen" id="screen-dashboard">
     <div class="card" style="margin-bottom:10px;">
       <div class="row" style="align-items:center;">
-        <div><strong id="dashClassName"></strong><div class="muted" id="dashCount"></div></div>
+        <div><strong id="dashClassName"></strong><div class="muted" id="dashCount"></div><div class="muted" id="dashTodayDate" style="font-size:12px; margin-top:2px;"></div></div>
         <div style="text-align:right;">
           <button class="secondary" id="importRosterBtn">📥 Import</button>
           <button class="secondary" id="addStudentBtn">+ Add Student</button>
@@ -487,6 +499,8 @@
     <div class="card" style="margin-bottom:10px; padding:10px 16px;">
       <button class="primary" id="perfectDayBtn" style="margin-top:0;">🌟 Award Perfect Day Bonus (+5)</button>
       <p class="muted" style="margin:6px 0 0;">Gives +5 to every student who logged at least one point today with zero negative marks. Safe to tap once per day — won't double-award.</p>
+      <button class="secondary" id="dailyCheckinBtn" style="width:100%; margin-top:10px;">📋 Daily Check-in (Attendance &amp; Homework)</button>
+      <p class="muted" id="dailyCheckinStatus" style="margin:6px 0 0;"></p>
     </div>
     <div id="studentGridWrap"></div>
   </div>
@@ -688,6 +702,32 @@
       <label style="margin-top:0;">Recently redeemed</label>
       <div id="shopRecentList" class="detail-history"></div>
     </div>
+  </div>
+</div>
+
+<!-- DAILY CHECK-IN MODAL -->
+<div class="modal-overlay" id="dailyCheckinModal">
+  <div class="modal">
+    <div class="modal-header"><h3>📋 Daily Check-in</h3><button class="close-btn" data-close="dailyCheckinModal">&times;</button></div>
+    <p class="muted" id="dailyCheckinDateLabel"></p>
+    <p class="muted">Everyone starts marked present &amp; submitted (+1 each). Tap a student to flip them - unselected homework costs -2, unselected attendance costs nothing (no penalty for being away).</p>
+
+    <div class="group-heading" style="margin-top:0;">🙋 Attendance</div>
+    <div class="row" style="gap:6px;">
+      <button class="secondary" id="checkinAllPresentBtn" style="flex:1; font-size:12px;">Mark all present</button>
+      <button class="secondary" id="checkinAllAbsentBtn" style="flex:1; font-size:12px;">Mark all absent</button>
+    </div>
+    <div id="checkinAttendanceList" style="margin-top:6px;"></div>
+
+    <div class="group-heading">📝 Homework</div>
+    <div class="row" style="gap:6px;">
+      <button class="secondary" id="checkinAllSubmittedBtn" style="flex:1; font-size:12px;">Mark all submitted</button>
+      <button class="secondary" id="checkinAllMissingBtn" style="flex:1; font-size:12px;">Mark all missing</button>
+    </div>
+    <div id="checkinHomeworkList" style="margin-top:6px;"></div>
+
+    <button class="primary" id="confirmCheckinBtn" style="width:100%; margin-top:14px;">Save today's check-in</button>
+    <button class="secondary" id="skipCheckinBtn" style="width:100%; margin-top:8px;">Skip for now</button>
   </div>
 </div>
 
@@ -1435,6 +1475,7 @@
       battle: { rivalName: '', rivalAvg: null },
       hallOfFame: [],
       groups: [], // {id, name}
+      dailyCheckin: { lastDoneDate: null }, // tracks the last local calendar day attendance/homework was recorded
     };
   }
 
@@ -1462,6 +1503,7 @@
           battle: parsed.battle || { rivalName: '', rivalAvg: null },
           hallOfFame: parsed.hallOfFame || [],
           groups: parsed.groups || [],
+          dailyCheckin: parsed.dailyCheckin || { lastDoneDate: null },
         };
         migrated.students.forEach(st => {
           if (st.groupId === undefined) st.groupId = null;
@@ -1481,6 +1523,8 @@
     appState.currentClassId = classId;
     state = appState.classes.find(c => c.id === classId) || null;
     saveState();
+    dailyCheckinDismissedThisSession = false; // a fresh class may not have today's check-in done yet
+    if (typeof maybeAutoShowDailyCheckin === 'function') maybeAutoShowDailyCheckin();
   }
 
   let appState = loadAppState() || { currentClassId: null, classes: [] };
@@ -1505,6 +1549,7 @@
       if (!st.purchases) st.purchases = [];
       if (!st.equipped) st.equipped = { frame: null, background: null, accessory: null };
     });
+    if (!c.dailyCheckin) c.dailyCheckin = { lastDoneDate: null };
   });
   let state = appState.currentClassId ? (appState.classes.find(c => c.id === appState.currentClassId) || null) : null;
 
@@ -1733,6 +1778,11 @@
   function renderDashboard() {
     document.getElementById('dashClassName').textContent = state.className;
     document.getElementById('dashCount').textContent = state.students.length + ' student(s)';
+    document.getElementById('dashTodayDate').textContent = '📅 ' + new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    const doneToday = state.dailyCheckin && state.dailyCheckin.lastDoneDate === todayKey(Date.now());
+    document.getElementById('dailyCheckinStatus').textContent = doneToday
+      ? "✅ Today's check-in is saved - tap the button above to review or correct it."
+      : "Not done yet today. It'll also pop up automatically the next time this page is open at/after 9am.";
     const wrap = document.getElementById('studentGridWrap');
     if (state.students.length === 0) {
       wrap.innerHTML = '<div class="empty-state"><div class="big">🐣</div>No students yet.<br>Tap "+ Add Student" to get started.</div>';
@@ -1804,6 +1854,126 @@
       alert('No students qualified yet today (need at least one point logged today, with no negative marks).');
     }
   });
+
+  // ---------- Daily Check-in (Attendance & Homework) ----------
+  // Local in-memory selection while the modal is open - everyone defaults to present/submitted (+1 each,
+  // the common case), so the teacher only has to tap the exceptions. Confirming REPLACES today's previous
+  // check-in entries for each student rather than stacking new ones, so reopening later the same day to
+  // fix a mistake is always safe and never double-counts points.
+  let checkinAbsentIds = new Set();
+  let checkinMissingIds = new Set();
+  let dailyCheckinDismissedThisSession = false; // closing without saving won't re-nag again until reload/next day
+  const CHECKIN_LABELS = { present: 'Present', absent: 'Absent', hwDone: 'Homework submitted', hwMissing: 'Homework missing' };
+
+  function renderCheckinLists() {
+    document.getElementById('dailyCheckinDateLabel').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const attendanceList = document.getElementById('checkinAttendanceList');
+    attendanceList.innerHTML = '';
+    state.students.forEach(st => {
+      const isAbsent = checkinAbsentIds.has(st.id);
+      const row = document.createElement('div');
+      row.className = 'checkin-row';
+      row.innerHTML = `<span class="checkin-name">${escapeHtml(st.name)}</span>`;
+      const btn = document.createElement('button');
+      btn.className = 'checkin-toggle ' + (isAbsent ? 'off' : 'on');
+      btn.textContent = isAbsent ? 'Absent' : 'Present';
+      btn.addEventListener('click', () => {
+        if (checkinAbsentIds.has(st.id)) checkinAbsentIds.delete(st.id); else checkinAbsentIds.add(st.id);
+        renderCheckinLists();
+      });
+      row.appendChild(btn);
+      attendanceList.appendChild(row);
+    });
+
+    const hwList = document.getElementById('checkinHomeworkList');
+    hwList.innerHTML = '';
+    state.students.forEach(st => {
+      const isMissing = checkinMissingIds.has(st.id);
+      const row = document.createElement('div');
+      row.className = 'checkin-row';
+      row.innerHTML = `<span class="checkin-name">${escapeHtml(st.name)}</span>`;
+      const btn = document.createElement('button');
+      btn.className = 'checkin-toggle ' + (isMissing ? 'off' : 'on');
+      btn.textContent = isMissing ? 'Missing' : 'Submitted';
+      btn.addEventListener('click', () => {
+        if (checkinMissingIds.has(st.id)) checkinMissingIds.delete(st.id); else checkinMissingIds.add(st.id);
+        renderCheckinLists();
+      });
+      row.appendChild(btn);
+      hwList.appendChild(row);
+    });
+  }
+
+  function openDailyCheckinModal() {
+    if (!state || state.students.length === 0) { alert('Add students before running the daily check-in.'); return; }
+    // Pre-fill from anything already saved today, so reopening to correct a mistake shows the current
+    // state instead of silently resetting everyone back to present/submitted.
+    const today = todayKey(Date.now());
+    checkinAbsentIds = new Set();
+    checkinMissingIds = new Set();
+    state.students.forEach(st => {
+      const todaysEntries = st.history.filter(h => todayKey(h.ts) === today);
+      if (todaysEntries.some(h => h.label === CHECKIN_LABELS.absent)) checkinAbsentIds.add(st.id);
+      if (todaysEntries.some(h => h.label === CHECKIN_LABELS.hwMissing)) checkinMissingIds.add(st.id);
+    });
+    renderCheckinLists();
+    document.getElementById('dailyCheckinModal').classList.add('active');
+  }
+  document.getElementById('dailyCheckinBtn').addEventListener('click', openDailyCheckinModal);
+  document.getElementById('checkinAllPresentBtn').addEventListener('click', () => { checkinAbsentIds.clear(); renderCheckinLists(); });
+  document.getElementById('checkinAllAbsentBtn').addEventListener('click', () => { state.students.forEach(st => checkinAbsentIds.add(st.id)); renderCheckinLists(); });
+  document.getElementById('checkinAllSubmittedBtn').addEventListener('click', () => { checkinMissingIds.clear(); renderCheckinLists(); });
+  document.getElementById('checkinAllMissingBtn').addEventListener('click', () => { state.students.forEach(st => checkinMissingIds.add(st.id)); renderCheckinLists(); });
+  document.getElementById('skipCheckinBtn').addEventListener('click', () => {
+    dailyCheckinDismissedThisSession = true;
+    closeModal('dailyCheckinModal');
+  });
+  document.getElementById('confirmCheckinBtn').addEventListener('click', () => {
+    const today = todayKey(Date.now());
+    const checkinLabelSet = new Set(Object.values(CHECKIN_LABELS));
+    let presentCount = 0, absentCount = 0, submittedCount = 0, missingCount = 0;
+    state.students.forEach(st => {
+      // Replace (not stack) today's previous check-in entries for this student first.
+      st.history = st.history.filter(h => !(todayKey(h.ts) === today && checkinLabelSet.has(h.label)));
+      const now = Date.now();
+      if (checkinAbsentIds.has(st.id)) {
+        st.history.push({ ts: now, label: CHECKIN_LABELS.absent, delta: 0 });
+        absentCount++;
+      } else {
+        st.history.push({ ts: now, label: CHECKIN_LABELS.present, delta: 1 });
+        presentCount++;
+      }
+      if (checkinMissingIds.has(st.id)) {
+        st.history.push({ ts: now, label: CHECKIN_LABELS.hwMissing, delta: -2 });
+        missingCount++;
+      } else {
+        st.history.push({ ts: now, label: CHECKIN_LABELS.hwDone, delta: 1 });
+        submittedCount++;
+      }
+    });
+    state.dailyCheckin.lastDoneDate = today;
+    dailyCheckinDismissedThisSession = true;
+    saveState();
+    closeModal('dailyCheckinModal');
+    renderDashboard();
+    renderLeaderboard();
+    showCelebration(`📋 Check-in saved: ${presentCount} present, ${absentCount} absent, ${submittedCount} homework in, ${missingCount} missing.`);
+  });
+
+  // Auto-popup: this is a static page with no server/push-notification backend, so it can only fire
+  // while the app is actually open - checked on boot, on every class switch, and once a minute while
+  // the tab stays open, so leaving the page open through 9am still catches it. A missed morning is
+  // never a lost day either way, since the "📋 Daily Check-in" button on the dashboard always works.
+  function maybeAutoShowDailyCheckin() {
+    if (!state || state.students.length === 0) return;
+    if (dailyCheckinDismissedThisSession) return;
+    if (new Date().getHours() < 9) return;
+    if (state.dailyCheckin && state.dailyCheckin.lastDoneDate === todayKey(Date.now())) return;
+    if (document.querySelector('.modal-overlay.active')) return; // don't interrupt another open modal
+    openDailyCheckinModal();
+  }
+  setInterval(maybeAutoShowDailyCheckin, 60000);
 
   // ---------- Add student ----------
   let selectedSpecies = SPECIES[0];
@@ -2829,6 +2999,7 @@
     renderHallOfFame();
     document.getElementById('renameClassInput').value = state.className;
     showScreen('dashboard');
+    maybeAutoShowDailyCheckin();
   }
   boot();
 })();
