@@ -160,22 +160,32 @@
   /* Cosmetic shop: purchased items are pure CSS/emoji decorations layered around the same 1em pet-art-box,
      so they need no new art assets and scale automatically with whatever font-size context they're in
      (card, detail modal, leaderboard row, projector). The wrapper has no fixed size or overflow of its own,
-     so it shrinks to the box and lets the frame ring / badge sit outside the box's own clipped edge. */
+     so it shrinks to the box and lets the frame / badge sit outside the box's own clipped edge. Frames are
+     a real border+padding (not a box-shadow hugging the artwork), so there's visible breathing room between
+     the frame edge and the pet - it reads as a picture frame around the art, not an outline stuck to it. */
   .pet-portrait { position: relative; display: inline-block; vertical-align: middle; }
-  .pet-portrait .cosmetic-badge { position: absolute; top: -0.16em; right: -0.16em; font-size: 0.42em; line-height: 1; filter: drop-shadow(0 0.01em 0.03em rgba(0,0,0,0.45)); }
-  .pet-portrait.frame-bronze .pet-art-box { box-shadow: 0 0 0 0.07em #cd7f32, 0 0 0 0.11em #8b5a2b, 0 0.02em 0.08em rgba(0,0,0,0.35); }
-  .pet-portrait.frame-silver .pet-art-box { box-shadow: 0 0 0 0.07em #e8e8e8, 0 0 0 0.11em #9aa0a6, 0 0.02em 0.08em rgba(0,0,0,0.3); }
-  .pet-portrait.frame-gold .pet-art-box { box-shadow: 0 0 0 0.07em #ffd700, 0 0 0 0.11em #b8860b, 0 0.04em 0.14em rgba(255,215,0,0.55); }
-  .pet-portrait.frame-neon .pet-art-box { box-shadow: 0 0 0 0.06em #22e0ff, 0 0 0.2em 0.02em #22e0ff, 0 0 0.34em 0.05em #ff2fd6; }
-  .pet-portrait.frame-rainbow .pet-art-box { animation: rainbowRing 4s linear infinite; }
-  @keyframes rainbowRing {
-    0% { box-shadow: 0 0 0 0.07em #ff3b5c, 0 0 0.16em 0.02em #ff3b5c; }
-    16% { box-shadow: 0 0 0 0.07em #ff9f1c, 0 0 0.16em 0.02em #ff9f1c; }
-    33% { box-shadow: 0 0 0 0.07em #ffd700, 0 0 0.16em 0.02em #ffd700; }
-    50% { box-shadow: 0 0 0 0.07em #2ecc71, 0 0 0.16em 0.02em #2ecc71; }
-    66% { box-shadow: 0 0 0 0.07em #3498db, 0 0 0.16em 0.02em #3498db; }
-    83% { box-shadow: 0 0 0 0.07em #9b59b6, 0 0 0.16em 0.02em #9b59b6; }
-    100% { box-shadow: 0 0 0 0.07em #ff3b5c, 0 0 0.16em 0.02em #ff3b5c; }
+  .pet-portrait .cosmetic-badge { position: absolute; top: -0.18em; right: -0.18em; font-size: 0.42em; line-height: 1; filter: drop-shadow(0 0.01em 0.03em rgba(0,0,0,0.45)); }
+  .pet-portrait.frame-bronze, .pet-portrait.frame-silver, .pet-portrait.frame-gold,
+  .pet-portrait.frame-neon, .pet-portrait.frame-rainbow {
+    padding: 0.13em;
+    border-radius: 0.26em;
+    border-style: solid;
+    border-width: 0.05em;
+    box-sizing: content-box;
+  }
+  .pet-portrait.frame-bronze { border-color: #cd7f32; background: linear-gradient(145deg, #f5e6d3, #e0b57e); box-shadow: 0 0.03em 0.1em rgba(139,90,43,0.45); }
+  .pet-portrait.frame-silver { border-color: #b8bcc2; background: linear-gradient(145deg, #f7f8f9, #dde1e4); box-shadow: 0 0.03em 0.1em rgba(0,0,0,0.25); }
+  .pet-portrait.frame-gold { border-color: #d4af00; background: linear-gradient(145deg, #fff6d9, #ffdf7e); box-shadow: 0 0.03em 0.14em rgba(255,215,0,0.55); }
+  .pet-portrait.frame-neon { border-color: #22e0ff; background: #0c1a2b; box-shadow: 0 0 0.2em 0.02em #22e0ff, 0 0 0.34em 0.05em #ff2fd6; }
+  .pet-portrait.frame-rainbow { border-color: #ff3b5c; background: #fffaf5; box-shadow: 0 0.03em 0.1em rgba(0,0,0,0.2); animation: rainbowBorder 4s linear infinite; }
+  @keyframes rainbowBorder {
+    0% { border-color: #ff3b5c; }
+    16% { border-color: #ff9f1c; }
+    33% { border-color: #ffd700; }
+    50% { border-color: #2ecc71; }
+    66% { border-color: #3498db; }
+    83% { border-color: #9b59b6; }
+    100% { border-color: #ff3b5c; }
   }
   .pet-art-box.bg-sunset { background-image: linear-gradient(180deg, #ff9a56, #ff6b9d); }
   .pet-art-box.bg-ocean { background-image: linear-gradient(180deg, #4facfe, #00c6ff); }
