@@ -154,9 +154,43 @@
   /* Wraps every rendered creature SVG so it always fills exactly the font-size of whatever context it's
      dropped into (card, leaderboard row, projector, pickers) - one rule handles sizing everywhere instead
      of a bespoke width/height per usage site. */
-  .pet-art-box { display: inline-block; width: 1em; height: 1em; vertical-align: middle; overflow: hidden; }
+  .pet-art-box { display: inline-block; width: 1em; height: 1em; vertical-align: middle; overflow: hidden; border-radius: 0.14em; background-size: cover; background-position: center; }
   .pet-art-box svg { width: 100%; height: 100%; display: block; }
   .pet-art-box .sprite { width: 100%; height: 100%; display: block; object-fit: contain; background-color: transparent; }
+  /* Cosmetic shop: purchased items are pure CSS/emoji decorations layered around the same 1em pet-art-box,
+     so they need no new art assets and scale automatically with whatever font-size context they're in
+     (card, detail modal, leaderboard row, projector). The wrapper has no fixed size or overflow of its own,
+     so it shrinks to the box and lets the frame ring / badge sit outside the box's own clipped edge. */
+  .pet-portrait { position: relative; display: inline-block; vertical-align: middle; }
+  .pet-portrait .cosmetic-badge { position: absolute; top: -0.16em; right: -0.16em; font-size: 0.42em; line-height: 1; filter: drop-shadow(0 0.01em 0.03em rgba(0,0,0,0.45)); }
+  .pet-portrait.frame-bronze .pet-art-box { box-shadow: 0 0 0 0.07em #cd7f32, 0 0 0 0.11em #8b5a2b, 0 0.02em 0.08em rgba(0,0,0,0.35); }
+  .pet-portrait.frame-silver .pet-art-box { box-shadow: 0 0 0 0.07em #e8e8e8, 0 0 0 0.11em #9aa0a6, 0 0.02em 0.08em rgba(0,0,0,0.3); }
+  .pet-portrait.frame-gold .pet-art-box { box-shadow: 0 0 0 0.07em #ffd700, 0 0 0 0.11em #b8860b, 0 0.04em 0.14em rgba(255,215,0,0.55); }
+  .pet-portrait.frame-neon .pet-art-box { box-shadow: 0 0 0 0.06em #22e0ff, 0 0 0.2em 0.02em #22e0ff, 0 0 0.34em 0.05em #ff2fd6; }
+  .pet-portrait.frame-rainbow .pet-art-box { animation: rainbowRing 4s linear infinite; }
+  @keyframes rainbowRing {
+    0% { box-shadow: 0 0 0 0.07em #ff3b5c, 0 0 0.16em 0.02em #ff3b5c; }
+    16% { box-shadow: 0 0 0 0.07em #ff9f1c, 0 0 0.16em 0.02em #ff9f1c; }
+    33% { box-shadow: 0 0 0 0.07em #ffd700, 0 0 0.16em 0.02em #ffd700; }
+    50% { box-shadow: 0 0 0 0.07em #2ecc71, 0 0 0.16em 0.02em #2ecc71; }
+    66% { box-shadow: 0 0 0 0.07em #3498db, 0 0 0.16em 0.02em #3498db; }
+    83% { box-shadow: 0 0 0 0.07em #9b59b6, 0 0 0.16em 0.02em #9b59b6; }
+    100% { box-shadow: 0 0 0 0.07em #ff3b5c, 0 0 0.16em 0.02em #ff3b5c; }
+  }
+  .pet-art-box.bg-sunset { background-image: linear-gradient(180deg, #ff9a56, #ff6b9d); }
+  .pet-art-box.bg-ocean { background-image: linear-gradient(180deg, #4facfe, #00c6ff); }
+  .pet-art-box.bg-forest { background-image: linear-gradient(180deg, #a8e063, #56ab2f); }
+  .pet-art-box.bg-candy { background-image: linear-gradient(180deg, #ffdde1, #ee9ca7); }
+  .pet-art-box.bg-galaxy {
+    background-image:
+      radial-gradient(circle at 30% 20%, rgba(255,255,255,0.85) 0 0.018em, transparent 0.018em),
+      radial-gradient(circle at 70% 55%, rgba(255,255,255,0.6) 0 0.014em, transparent 0.014em),
+      radial-gradient(circle at 50% 82%, rgba(255,255,255,0.75) 0 0.018em, transparent 0.018em),
+      radial-gradient(circle at 85% 25%, rgba(255,255,255,0.5) 0 0.012em, transparent 0.012em),
+      linear-gradient(180deg, #1e1b4b, #4c1d95);
+  }
+  /* Settings + shop grid preview swatches (not scaled to a student's actual pet) */
+  .cosmetic-preview-swatch { display: inline-block; width: 26px; height: 26px; border-radius: 5px; vertical-align: middle; margin-right: 6px; }
   .detail-visual-wrap { width: 100%; }
   .detail-visual-wrap .pet-aura { width: 150px; height: 150px; }
   /* Evolution tiers - the whole CARD changes look (border/background/glow), not just the emoji, so a
@@ -214,6 +248,8 @@
     background: var(--teal); color: white; border: none; padding: 8px 14px; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
   }
   .shop-buy-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; }
+  .shop-buy-btn.owned { background: var(--good); }
+  .shop-buy-btn.equipped { background: var(--muted); }
 
   .detail-history {
     max-height: 180px; overflow-y: auto; margin-top: 10px; font-size: 12px; border-top: 1px solid var(--border); padding-top: 8px;
@@ -478,10 +514,18 @@
 
     <div class="card">
       <h2>🛍 Shop items</h2>
-      <p class="muted">What students can redeem with their wallet balance (their lifetime points minus whatever they've already spent — spending here never affects pet evolution or the leaderboard). Defaults are real-world classroom privileges you grant in person; edit freely.</p>
+      <p class="muted">Cosmetics students unlock with their wallet balance (their lifetime points minus whatever they've already spent — spending here never touches pet evolution or the leaderboard). Once bought, an item is owned forever and can be equipped or swapped for free anytime. Every design is pure CSS/emoji, so adding more needs no new art.</p>
       <div id="shopItemList"></div>
       <div class="row" style="margin-top:12px;">
-        <input type="text" id="newShopItemName" placeholder="e.g. Homework pass">
+        <select id="newShopItemType">
+          <option value="frame">Frame</option>
+          <option value="background">Background</option>
+          <option value="accessory">Accessory</option>
+        </select>
+        <select id="newShopItemDesign"></select>
+      </div>
+      <div class="row" style="margin-top:8px;">
+        <input type="text" id="newShopItemName" placeholder="Display name (optional)">
         <input type="number" id="newShopItemCost" placeholder="cost" style="max-width:80px;">
       </div>
       <button class="primary" id="addShopItemBtn">Add shop item</button>
@@ -1142,23 +1186,54 @@
   // number from their lifetime points total. Lifetime points (totalPoints) never decreases from a
   // purchase - it's permanent and drives pet evolution/leaderboard exactly as before. The wallet is
   // simply "lifetime points earned minus lifetime points spent", so spending never undoes pet growth,
-  // it just spends down the balance available to shop with. These are real-world classroom privileges
-  // (redeemed in person by the teacher) rather than digital cosmetics, since that needs no new art
-  // pipeline and is the most broadly useful default - rename/reprice/add your own below in Settings,
-  // exactly like the point categories above.
+  // it just spends down the balance available to shop with.
+  //
+  // Items are cosmetics for the pet portrait, not consumables: buy once, own forever, equip/swap for
+  // free afterward (tracked in student.owned/student.equipped below). Every visual is pure CSS or an
+  // emoji glyph - no new art assets needed, so there's no art pipeline to keep in sync as items are
+  // added or edited. Each item has a `type` (frame / background / accessory) and a `value`, which is
+  // the id of a design in FRAME_STYLES / BACKGROUND_THEMES / ACCESSORY_ICONS below - Settings picks
+  // from those same catalogs when a teacher adds a new item, so every item always renders correctly.
+  const FRAME_STYLES = [
+    { id: 'bronze', name: 'Bronze Frame' },
+    { id: 'silver', name: 'Silver Frame' },
+    { id: 'gold', name: 'Gold Frame' },
+    { id: 'neon', name: 'Neon Frame' },
+    { id: 'rainbow', name: 'Rainbow Frame' },
+  ];
+  const BACKGROUND_THEMES = [
+    { id: 'sunset', name: 'Sunset Backdrop' },
+    { id: 'ocean', name: 'Ocean Backdrop' },
+    { id: 'forest', name: 'Forest Backdrop' },
+    { id: 'candy', name: 'Candy Backdrop' },
+    { id: 'galaxy', name: 'Galaxy Backdrop' },
+  ];
+  const ACCESSORY_ICONS = [
+    { id: '👑', name: 'Crown' },
+    { id: '🎀', name: 'Bow' },
+    { id: '🕶️', name: 'Sunglasses' },
+    { id: '🎩', name: 'Top Hat' },
+    { id: '✨', name: 'Sparkle Aura' },
+    { id: '🔥', name: 'Flame Trail' },
+  ];
+  const SHOP_DESIGN_CATALOG = { frame: FRAME_STYLES, background: BACKGROUND_THEMES, accessory: ACCESSORY_ICONS };
   const DEFAULT_SHOP_ITEMS = [
-    { name: 'Homework pass (skip one)', cost: 15 },
-    { name: 'Choose your own seat (1 day)', cost: 10 },
-    { name: 'Line leader for the day', cost: 8 },
-    { name: 'Extra 5 minutes of recess', cost: 12 },
-    { name: 'Class helper for the day', cost: 10 },
-    { name: 'Pick the class game or song', cost: 8 },
-    { name: 'Bring a small toy to school', cost: 10 },
-    { name: 'Lunch with the teacher', cost: 20 },
-    { name: 'Sit at the teacher\'s desk for a lesson', cost: 15 },
-    { name: 'Extra iPad/computer time (10 min)', cost: 15 },
-    { name: 'Mystery prize box', cost: 25 },
-    { name: '"Star of the Week" certificate', cost: 30 },
+    { name: 'Bronze Frame', cost: 10, type: 'frame', value: 'bronze' },
+    { name: 'Silver Frame', cost: 18, type: 'frame', value: 'silver' },
+    { name: 'Gold Frame', cost: 30, type: 'frame', value: 'gold' },
+    { name: 'Neon Frame', cost: 22, type: 'frame', value: 'neon' },
+    { name: 'Rainbow Frame', cost: 40, type: 'frame', value: 'rainbow' },
+    { name: 'Sunset Backdrop', cost: 12, type: 'background', value: 'sunset' },
+    { name: 'Ocean Backdrop', cost: 12, type: 'background', value: 'ocean' },
+    { name: 'Forest Backdrop', cost: 12, type: 'background', value: 'forest' },
+    { name: 'Candy Backdrop', cost: 15, type: 'background', value: 'candy' },
+    { name: 'Galaxy Backdrop', cost: 25, type: 'background', value: 'galaxy' },
+    { name: 'Crown', cost: 20, type: 'accessory', value: '👑' },
+    { name: 'Bow', cost: 8, type: 'accessory', value: '🎀' },
+    { name: 'Sunglasses', cost: 10, type: 'accessory', value: '🕶️' },
+    { name: 'Top Hat', cost: 15, type: 'accessory', value: '🎩' },
+    { name: 'Sparkle Aura', cost: 18, type: 'accessory', value: '✨' },
+    { name: 'Flame Trail', cost: 20, type: 'accessory', value: '🔥' },
   ];
   // 11-stage progression matching banchong.cn's own level-rules table (Lv.1-10 cumulative energy: 3,6,10,20,35,50,70,90,120,160)
   const DEFAULT_THRESHOLDS = [0, 3, 6, 10, 20, 35, 50, 70, 90, 120, 160];
@@ -1299,10 +1374,10 @@
       // .map() (not .slice()) so each class gets its own independent category objects with fresh ids -
       // sharing object references across classes would mean editing one class's category could corrupt another's.
       categories: DEFAULT_CATEGORIES.map(c => ({ id: freshCategoryId(), name: c.name, points: c.points, group: c.group })),
-      shopItems: DEFAULT_SHOP_ITEMS.map(i => ({ id: freshShopItemId(), name: i.name, cost: i.cost })),
+      shopItems: DEFAULT_SHOP_ITEMS.map(i => ({ id: freshShopItemId(), name: i.name, cost: i.cost, type: i.type, value: i.value })),
       thresholds: DEFAULT_THRESHOLDS.slice(),
       criticalThreshold: DEFAULT_CRITICAL,
-      students: [], // {id, name, species, color, history:[{ts, label, delta}], groupId, purchases:[{ts,itemId,name,cost}]}
+      students: [], // {id, name, species, color, history:[{ts, label, delta}], groupId, purchases:[{ts,itemId,name,cost}], equipped:{frame,background,accessory}}
       battle: { rivalName: '', rivalAvg: null },
       hallOfFame: [],
       groups: [], // {id, name}
@@ -1324,7 +1399,9 @@
           id: 'cls_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
           className: parsed.className || 'My Class',
           categories: parsed.categories || DEFAULT_CATEGORIES.slice(),
-          shopItems: parsed.shopItems || DEFAULT_SHOP_ITEMS.map(i => ({ id: freshShopItemId(), name: i.name, cost: i.cost })),
+          shopItems: (parsed.shopItems || []).filter(i => i.type).length
+            ? parsed.shopItems.filter(i => i.type)
+            : DEFAULT_SHOP_ITEMS.map(i => ({ id: freshShopItemId(), name: i.name, cost: i.cost, type: i.type, value: i.value })),
           thresholds: (parsed.thresholds && parsed.thresholds.length === STAGE_LABELS.length) ? parsed.thresholds : DEFAULT_THRESHOLDS.slice(),
           criticalThreshold: parsed.criticalThreshold !== undefined ? parsed.criticalThreshold : DEFAULT_CRITICAL,
           students: parsed.students || [],
@@ -1336,6 +1413,7 @@
           if (st.groupId === undefined) st.groupId = null;
           if (!st.color) st.color = 'Original';
           if (!st.purchases) st.purchases = [];
+          if (!st.equipped) st.equipped = { frame: null, background: null, accessory: null };
         });
         return { currentClassId: migrated.id, classes: [migrated] };
       }
@@ -1362,12 +1440,16 @@
       group: cat.group || 'General',
     }));
     // Backfill shop for classes saved before the shop existed - fresh default list, and an empty
-    // purchase log per student (their existing points total is untouched either way).
-    if (!c.shopItems) {
-      c.shopItems = DEFAULT_SHOP_ITEMS.map(i => ({ id: freshShopItemId(), name: i.name, cost: i.cost }));
+    // purchase log per student (their existing points total is untouched either way). Also drop any
+    // leftover pre-cosmetic items (old privilege-style entries have no `type`, so they can't render).
+    if (!c.shopItems || !c.shopItems.some(i => i.type)) {
+      c.shopItems = DEFAULT_SHOP_ITEMS.map(i => ({ id: freshShopItemId(), name: i.name, cost: i.cost, type: i.type, value: i.value }));
+    } else {
+      c.shopItems = c.shopItems.filter(i => i.type);
     }
     (c.students || []).forEach(st => {
       if (!st.purchases) st.purchases = [];
+      if (!st.equipped) st.equipped = { frame: null, background: null, accessory: null };
     });
   });
   let state = appState.currentClassId ? (appState.classes.find(c => c.id === appState.currentClassId) || null) : null;
@@ -1493,6 +1575,32 @@
     return totalPoints(student) - totalSpent(student);
   }
 
+  // ---------- Cosmetics (owned-forever, equip/swap for free) ----------
+  // Ownership isn't a separate stored list - it's derived from the purchase ledger (every itemId the
+  // student has ever bought), so totalSpent()/walletBalance() above stay the single source of truth for
+  // money and this stays the single source of truth for what's unlocked. Re-buying an already-owned
+  // item is blocked in the shop UI, so the ledger never gets duplicate entries for the same item.
+  function ownedItemIds(student) {
+    return new Set((student.purchases || []).map(p => p.itemId));
+  }
+  function equippedItem(student, type) {
+    const id = student.equipped && student.equipped[type];
+    if (!id) return null;
+    return (state.shopItems || []).find(i => i.id === id && i.type === type) || null;
+  }
+  // Builds the full portrait markup for a student: the pet-art-box (with an equipped background theme
+  // painted behind the transparent sprite) wrapped in a decoration layer for an equipped frame ring and
+  // an equipped accessory badge. Species-picker previews elsewhere don't call this - only real students.
+  function petPortraitHtml(student, artInnerHtml) {
+    const frame = equippedItem(student, 'frame');
+    const bg = equippedItem(student, 'background');
+    const accessory = equippedItem(student, 'accessory');
+    const frameClass = frame ? ' frame-' + frame.value : '';
+    const bgClass = bg ? ' bg-' + bg.value : '';
+    const badge = accessory ? `<span class="cosmetic-badge">${accessory.value}</span>` : '';
+    return `<span class="pet-portrait${frameClass}"><span class="pet-art-box${bgClass}">${artInnerHtml}</span>${badge}</span>`;
+  }
+
   function recentMomentum(student) {
     const last3 = student.history.slice(-3);
     return last3.reduce((sum, h) => sum + h.delta, 0);
@@ -1571,7 +1679,7 @@
         ${lvl.stage < 0 ? `<div class="sick-badge">${lvl.label.toUpperCase()}</div>` : ''}
         <div class="pet-visual-wrap">
           ${glyph.aura || ''}
-          <div class="pet-emoji ${glyph.extraClass}" style="${petGlyphStyle(st, glyph)}">${glyph.isEgg ? '🥚' : '<span class="pet-art-box">' + glyph.svg + '</span>' + (glyph.suffixText || '')}</div>
+          <div class="pet-emoji ${glyph.extraClass}" style="${petGlyphStyle(st, glyph)}">${glyph.isEgg ? '🥚' : petPortraitHtml(st, glyph.svg) + (glyph.suffixText || '')}</div>
         </div>
         <div class="name">${escapeHtml(st.name)}</div>
         <div class="level">${lvl.label}</div>
@@ -1657,7 +1765,8 @@
     if (!name) { alert('Please enter a student name.'); return; }
     state.students.push({
       id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-      name, species: selectedSpecies, color: selectedColor, history: [], groupId: null, purchases: []
+      name, species: selectedSpecies, color: selectedColor, history: [], groupId: null, purchases: [],
+      equipped: { frame: null, background: null, accessory: null },
     });
     saveState();
     closeModal('addStudentModal');
@@ -1910,6 +2019,7 @@
         history: [],
         groupId,
         purchases: [],
+        equipped: { frame: null, background: null, accessory: null },
       });
       speciesIdx++;
     });
@@ -1941,7 +2051,7 @@
     document.getElementById('detailName').textContent = st.name;
     const detailEmojiEl = document.getElementById('detailEmoji');
     const detailGlyph = petGlyph(st, lvl);
-    detailEmojiEl.innerHTML = detailGlyph.isEgg ? '🥚' : '<span class="pet-art-box">' + detailGlyph.svg + '</span>' + (detailGlyph.suffixText || '');
+    detailEmojiEl.innerHTML = detailGlyph.isEgg ? '🥚' : petPortraitHtml(st, detailGlyph.svg) + (detailGlyph.suffixText || '');
     detailEmojiEl.className = detailGlyph.extraClass;
     detailEmojiEl.setAttribute('style', 'font-size:60px;' + petGlyphStyle(st, detailGlyph));
     const detailWrap = document.getElementById('detailVisualWrap');
@@ -2010,36 +2120,80 @@
     }
   }
 
+  const SHOP_TYPE_LABELS = { frame: '🖼 Frames', background: '🎨 Backgrounds', accessory: '🎩 Accessories' };
+  // Small live preview of a design using the SAME classes real pets render with (just at a bigger,
+  // fixed font-size) - so what a student sees in the shop is exactly what they'll get, no separate
+  // set of preview images to keep in sync.
+  function shopItemPreviewHtml(item) {
+    if (item.type === 'frame') {
+      return `<span class="pet-portrait frame-${item.value}" style="font-size:26px;"><span class="pet-art-box" style="background:#fff;"></span></span>`;
+    }
+    if (item.type === 'background') {
+      return `<span class="pet-portrait" style="font-size:26px;"><span class="pet-art-box bg-${item.value}"></span></span>`;
+    }
+    if (item.type === 'accessory') {
+      return `<span class="cosmetic-preview-swatch" style="display:inline-flex; align-items:center; justify-content:center; font-size:16px; background:var(--border);">${item.value}</span>`;
+    }
+    return '';
+  }
   function renderShop() {
     const st = state.students.find(s => s.id === currentDetailId);
     if (!st) return;
     const balance = walletBalance(st);
     document.getElementById('shopWalletBalance').textContent = balance + ' pts';
+    const owned = ownedItemIds(st);
 
     const grid = document.getElementById('shopItemsGrid');
     grid.innerHTML = '';
-    (state.shopItems || []).forEach(item => {
-      const row = document.createElement('div');
-      row.className = 'shop-item-row';
-      const affordable = balance >= item.cost;
-      row.innerHTML = `
-        <span class="shop-item-name">${escapeHtml(item.name)}</span>
-        <span class="shop-item-cost">${item.cost} pts</span>
-      `;
-      const buyBtn = document.createElement('button');
-      buyBtn.className = 'shop-buy-btn';
-      buyBtn.textContent = affordable ? 'Buy' : 'Not enough pts';
-      buyBtn.disabled = !affordable;
-      buyBtn.addEventListener('click', () => {
-        if (walletBalance(st) < item.cost) return;
-        st.purchases.push({ ts: Date.now(), itemId: item.id, name: item.name, cost: item.cost });
-        saveState();
-        renderShop();
-        renderDetail();
-        showCelebration(`🛍 ${st.name} redeemed: ${item.name}!`);
+    const groups = { frame: [], background: [], accessory: [] };
+    (state.shopItems || []).forEach(item => { if (groups[item.type]) groups[item.type].push(item); });
+    ['frame', 'background', 'accessory'].forEach(type => {
+      if (groups[type].length === 0) return;
+      const heading = document.createElement('div');
+      heading.className = 'group-heading';
+      heading.textContent = SHOP_TYPE_LABELS[type];
+      grid.appendChild(heading);
+      groups[type].forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'shop-item-row';
+        const isOwned = owned.has(item.id);
+        const isEquipped = !!(st.equipped && st.equipped[type] === item.id);
+        const affordable = balance >= item.cost;
+        row.innerHTML = `
+          ${shopItemPreviewHtml(item)}
+          <span class="shop-item-name">${escapeHtml(item.name)}</span>
+          <span class="shop-item-cost">${isOwned ? 'Owned' : item.cost + ' pts'}</span>
+        `;
+        const btn = document.createElement('button');
+        if (!isOwned) {
+          // Buy = unlock it forever (deducted from wallet once) and equip it immediately, since a
+          // student who just spent points to get something almost always wants to see it right away.
+          btn.className = 'shop-buy-btn';
+          btn.textContent = affordable ? 'Buy' : 'Not enough pts';
+          btn.disabled = !affordable;
+          btn.addEventListener('click', () => {
+            if (walletBalance(st) < item.cost) return;
+            st.purchases.push({ ts: Date.now(), itemId: item.id, name: item.name, cost: item.cost });
+            st.equipped[type] = item.id;
+            saveState();
+            renderShop();
+            renderDetail();
+            showCelebration(`🛍 ${st.name} unlocked: ${item.name}!`);
+          });
+        } else {
+          // Owned items are free to equip/unequip/swap forever - no further wallet cost.
+          btn.className = 'shop-buy-btn owned' + (isEquipped ? ' equipped' : '');
+          btn.textContent = isEquipped ? 'Equipped ✓' : 'Equip';
+          btn.addEventListener('click', () => {
+            st.equipped[type] = isEquipped ? null : item.id;
+            saveState();
+            renderShop();
+            renderDetail();
+          });
+        }
+        row.appendChild(btn);
+        grid.appendChild(row);
       });
-      row.appendChild(buyBtn);
-      grid.appendChild(row);
     });
 
     const recentList = document.getElementById('shopRecentList');
@@ -2125,7 +2279,7 @@
     wrap.innerHTML = ranked.map((r, i) => {
       const lvl = levelFor(totalPoints(r.st)); // pet stage always reflects lifetime points, not the filtered view
       // Compact species+stage-badge (not the full aura) - leaderboard rows are too small for aura art.
-      const lbText = lvl.stage === 0 ? '🥚' : ('<span class="pet-art-box">' + renderPetArt(r.st.species, formLevelFor(lvl.stage < 0 ? 1 : lvl.stage)) + '</span>' + lvl.emoji);
+      const lbText = lvl.stage === 0 ? '🥚' : (petPortraitHtml(r.st, renderPetArt(r.st.species, formLevelFor(lvl.stage < 0 ? 1 : lvl.stage))) + lvl.emoji);
       const trendClass = r.momentum > 0 ? 'up' : (r.momentum < 0 ? 'down' : 'flat');
       const trendArrow = r.momentum > 0 ? '▲' : (r.momentum < 0 ? '▼' : '—');
       return `
@@ -2267,7 +2421,7 @@
     const medals = ['🥇', '🥈', '🥉'];
     board.innerHTML = ranked.map((r, i) => {
       const lvl = levelFor(r.pts);
-      const projText = lvl.stage === 0 ? '🥚' : ('<span class="pet-art-box">' + renderPetArt(r.st.species, formLevelFor(lvl.stage < 0 ? 1 : lvl.stage)) + '</span>' + lvl.emoji);
+      const projText = lvl.stage === 0 ? '🥚' : (petPortraitHtml(r.st, renderPetArt(r.st.species, formLevelFor(lvl.stage < 0 ? 1 : lvl.stage))) + lvl.emoji);
       return `
         <div class="proj-row">
           <div class="proj-rank">${i < 3 ? medals[i] : (i + 1)}</div>
@@ -2422,33 +2576,54 @@
     renderCategories();
   });
 
-  // ---------- Settings: shop items (flat list, no grouping needed) ----------
+  // ---------- Settings: shop items (grouped by type, same as the shop grid students see) ----------
   function renderShopItemsSettings() {
     const list = document.getElementById('shopItemList');
     list.innerHTML = '';
-    const chipRow = document.createElement('div');
-    chipRow.className = 'chip-list';
-    (state.shopItems || []).forEach(item => {
-      const chip = document.createElement('div');
-      chip.className = 'chip';
-      chip.innerHTML = `<span>${escapeHtml(item.name)} (${item.cost} pts)</span>`;
-      const rm = document.createElement('button');
-      rm.textContent = '✕';
-      rm.addEventListener('click', () => {
-        state.shopItems = state.shopItems.filter(i => i.id !== item.id);
-        saveState();
-        renderShopItemsSettings();
+    ['frame', 'background', 'accessory'].forEach(type => {
+      const items = (state.shopItems || []).filter(i => i.type === type);
+      if (items.length === 0) return;
+      const heading = document.createElement('div');
+      heading.className = 'group-heading';
+      heading.textContent = SHOP_TYPE_LABELS[type];
+      list.appendChild(heading);
+      const chipRow = document.createElement('div');
+      chipRow.className = 'chip-list';
+      items.forEach(item => {
+        const chip = document.createElement('div');
+        chip.className = 'chip';
+        chip.innerHTML = `<span style="display:inline-flex; align-items:center; gap:6px;">${shopItemPreviewHtml(item)}${escapeHtml(item.name)} (${item.cost} pts)</span>`;
+        const rm = document.createElement('button');
+        rm.textContent = '✕';
+        rm.addEventListener('click', () => {
+          state.shopItems = state.shopItems.filter(i => i.id !== item.id);
+          saveState();
+          renderShopItemsSettings();
+        });
+        chip.appendChild(rm);
+        chipRow.appendChild(chip);
       });
-      chip.appendChild(rm);
-      chipRow.appendChild(chip);
+      list.appendChild(chipRow);
     });
-    list.appendChild(chipRow);
   }
+  // Design dropdown always mirrors the currently-selected category, so a teacher can only ever save a
+  // valid {type, value} pair - no way to end up with an item that has no matching CSS/emoji to render.
+  function refreshNewShopItemDesigns() {
+    const type = document.getElementById('newShopItemType').value;
+    const catalog = SHOP_DESIGN_CATALOG[type] || [];
+    document.getElementById('newShopItemDesign').innerHTML = catalog.map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name)}</option>`).join('');
+  }
+  document.getElementById('newShopItemType').addEventListener('change', refreshNewShopItemDesigns);
+  refreshNewShopItemDesigns();
   document.getElementById('addShopItemBtn').addEventListener('click', () => {
-    const name = document.getElementById('newShopItemName').value.trim();
+    const type = document.getElementById('newShopItemType').value;
+    const designId = document.getElementById('newShopItemDesign').value;
+    const designEntry = (SHOP_DESIGN_CATALOG[type] || []).find(d => d.id === designId);
+    if (!designEntry) { alert('Pick a design.'); return; }
+    const nameInput = document.getElementById('newShopItemName').value.trim();
     const cost = parseInt(document.getElementById('newShopItemCost').value, 10);
-    if (!name || isNaN(cost) || cost < 0) { alert('Enter a name and a cost of 0 or more.'); return; }
-    state.shopItems.push({ id: freshShopItemId(), name, cost });
+    if (isNaN(cost) || cost < 0) { alert('Enter a cost of 0 or more.'); return; }
+    state.shopItems.push({ id: freshShopItemId(), name: nameInput || designEntry.name, cost, type, value: designEntry.id });
     saveState();
     document.getElementById('newShopItemName').value = '';
     document.getElementById('newShopItemCost').value = '';
