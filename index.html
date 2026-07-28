@@ -417,6 +417,24 @@
   }
   #celebrationToast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+  /* Parent alert toast - like celebrationToast but interactive (has a tappable WhatsApp button) and
+     bottom-anchored so it never overlaps the celebration toast if both fire close together. */
+  #parentAlertToast {
+    position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%) translateY(30px);
+    background: var(--navy); color: white; padding: 14px 16px; border-radius: 12px; font-size: 13px;
+    z-index: 45; opacity: 0; transition: all 0.35s ease; pointer-events: none; text-align: left;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.25); max-width: 320px; width: calc(100% - 32px);
+  }
+  #parentAlertToast.show { opacity: 1; transform: translateX(-50%) translateY(0); pointer-events: auto; }
+  #parentAlertToast .pa-title { font-weight: 700; margin-bottom: 6px; }
+  #parentAlertToast .pa-row { display: flex; gap: 8px; margin-top: 8px; }
+  #parentAlertToast .pa-btn {
+    flex: 1; text-align: center; padding: 8px 10px; border-radius: 8px; font-size: 13px; font-weight: 600;
+    text-decoration: none; cursor: pointer; border: none;
+  }
+  #parentAlertToast .pa-wa { background: #25D366; color: #063; }
+  #parentAlertToast .pa-dismiss { background: rgba(255,255,255,0.15); color: white; }
+
   /* Hall of Fame */
   .hof-row {
     display: flex; align-items: center; gap: 10px; padding: 8px 4px; border-bottom: 1px solid var(--border); font-size: 13px;
@@ -473,6 +491,57 @@
 <main>
 
   <!-- SETUP SCREEN -->
+  <div class="screen active" id="screen-login">
+    <div class="card">
+      <h2>🐾 Class Pet Garden</h2>
+      <p class="muted">Log in to access your classes. Your data is saved to the cloud now, not just this device.</p>
+      <label>Email</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com">
+      <label style="margin-top:10px;">Password</label>
+      <input type="password" id="loginPassword" placeholder="Your password">
+      <p id="loginError" class="muted" style="color:var(--bad); display:none; margin-top:8px;"></p>
+      <button class="primary" id="loginBtn" style="margin-top:14px;">Log in</button>
+      <p class="muted" style="margin-top:10px; font-size:12px; text-align:center;">
+        New here? <a href="#" id="goToSignupLink">Create an account</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-signup">
+    <div class="card">
+      <h2>🐾 Create your account</h2>
+      <p class="muted">Free to start - 1 class, up to 40 students. You can add paid classes later.</p>
+      <label>Your school / centre / organization name</label>
+      <input type="text" id="signupOrgName" placeholder="e.g. Sunshine Tuition Centre">
+      <label style="margin-top:10px;">Your email</label>
+      <input type="email" id="signupEmail" placeholder="you@example.com">
+      <label style="margin-top:10px;">Password</label>
+      <input type="password" id="signupPassword" placeholder="At least 6 characters">
+      <label style="margin-top:10px;">Confirm password</label>
+      <input type="password" id="signupPasswordConfirm" placeholder="Re-enter your password">
+
+      <details style="margin-top:14px; font-size:13px; color:var(--muted);">
+        <summary style="cursor:pointer; font-weight:600;">What we store, and why (tap to read)</summary>
+        <div style="margin-top:8px; line-height:1.5;">
+          <p>We store your class roster and any parent contact details you choose to add, so the app can work and (if you turn it on) send parent alerts. Only you, your co-teachers, and a linked parent (for their own child only) can ever see this data - enforced at the database level, not just hidden in the app.</p>
+          <p>By creating an account, you confirm you have appropriate authority - from your school, centre, or the parents themselves - to record this information, the same way you would in an attendance register or report card. Data isn't sold or used for advertising.</p>
+          <p>This is an early-stage product (pilot phase) without a formal SLA yet. We'll let you know before any change that affects how your data is stored or used.</p>
+        </div>
+      </details>
+
+      <label class="row" style="align-items:flex-start; gap:8px; margin-top:12px;">
+        <input type="checkbox" id="signupConsentCheck" style="width:auto; margin-top:3px;">
+        <span style="font-weight:400; font-size:13px;">I understand and agree to how my data and my students' data will be stored and used, as described above.</span>
+      </label>
+
+      <p id="signupError" class="muted" style="color:var(--bad); display:none; margin-top:8px;"></p>
+      <button class="primary" id="signupBtn" style="margin-top:14px;" disabled>Create account</button>
+      <p class="muted" style="margin-top:10px; font-size:12px; text-align:center;">
+        Already have an account? <a href="#" id="goToLoginLink">Log in</a>
+      </p>
+    </div>
+  </div>
+
   <div class="screen" id="screen-setup">
     <div class="card">
       <h2>Set up your class</h2>
@@ -545,6 +614,12 @@
 
   <!-- SETTINGS SCREEN -->
   <div class="screen" id="screen-settings">
+    <div class="card">
+      <h2>☁️ Account</h2>
+      <p class="muted">Classes, students, and points are saved to the cloud now — logging in on another device shows the same data. Categories, shop, thresholds, and daily check-in are still local-only per device for now.</p>
+      <button class="secondary" id="logoutBtn" style="width:100%;">Log out</button>
+    </div>
+
     <div class="card">
       <h2>🏫 This class</h2>
       <p class="muted">Rename this class, or delete it entirely (this only removes the currently selected class — your other classes are untouched).</p>
@@ -622,6 +697,7 @@
 </div>
 
 <div id="celebrationToast"></div>
+<div id="parentAlertToast"></div>
 
 <!-- PROJECTOR / BIG SCREEN MODE -->
 <div id="projectorOverlay">
@@ -638,7 +714,7 @@
 <div class="modal-overlay" id="importModal">
   <div class="modal">
     <div class="modal-header"><h3>Import roster</h3><button class="close-btn" data-close="importModal">&times;</button></div>
-    <p class="muted">Upload an Excel (.xlsx) or CSV file with a "Name" column (and an optional "Group" column) to add many students at once instead of typing them one by one.</p>
+    <p class="muted">Upload an Excel (.xlsx) or CSV file with a "Name" column (optional columns: "Group", "Parent Name", "Parent Email", "Parent WhatsApp") to add many students at once instead of typing them one by one. Parent contact info enables alerts when a student receives a negative mark.</p>
     <button class="secondary" id="downloadTemplateBtn" style="width:100%;">⬇ Download CSV template</button>
     <label style="margin-top:14px;">Choose file</label>
     <input type="file" id="importFile" accept=".csv,.xlsx,.xls">
@@ -672,7 +748,13 @@
     <div style="text-align:center; margin-top:12px;">
       <span id="addPetPreview" style="font-size:48px;"></span>
     </div>
-    <button class="primary" id="confirmAddStudentBtn">Add to class</button>
+    <div style="border-top:1px solid var(--border); margin-top:14px; padding-top:10px;">
+      <label style="margin-top:0;">Parent contact (optional - enables alerts on negative marks)</label>
+      <input type="text" id="newParentName" placeholder="Parent/guardian name">
+      <input type="email" id="newParentEmail" placeholder="Parent email" style="margin-top:8px;">
+      <input type="text" id="newParentWhatsapp" placeholder="Parent WhatsApp, e.g. 60123456789 (country code, no +)" style="margin-top:8px;">
+    </div>
+    <button class="primary" id="confirmAddStudentBtn" style="margin-top:14px;">Add to class</button>
   </div>
 </div>
 
@@ -761,6 +843,17 @@
     </div>
     <label style="margin-top:14px;">Group</label>
     <select id="detailGroupSelect"></select>
+    <div style="border-top:1px solid var(--border); margin-top:12px; padding-top:10px;">
+      <label style="margin-top:0;">📱 Parent contact &amp; alerts</label>
+      <input type="text" id="detailParentName" placeholder="Parent/guardian name">
+      <input type="email" id="detailParentEmail" placeholder="Parent email" style="margin-top:8px;">
+      <input type="text" id="detailParentWhatsapp" placeholder="Parent WhatsApp, e.g. 60123456789" style="margin-top:8px;">
+      <label class="row" style="align-items:center; gap:8px; margin-top:8px;">
+        <input type="checkbox" id="detailParentAlertsToggle" style="width:auto;">
+        <span style="font-weight:400;">Alert this parent when a negative mark is logged</span>
+      </label>
+      <button class="secondary" id="saveParentContactBtn" style="width:100%; margin-top:8px;">Save parent contact</button>
+    </div>
     <div id="quickActions"></div>
     <div style="border-top:1px solid var(--border); margin-top:12px; padding-top:10px;">
       <label style="margin-top:0;">✏️ Custom point entry (for one-off moments)</label>
@@ -782,9 +875,229 @@
      if there's no internet, the import flow falls back to asking for a CSV file instead, which needs no library at all. -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
+<!-- Optional: powers auto-sent parent emails on negative marks (Settings > Parent Alerts). If this fails to
+     load (no internet, or you haven't configured EMAILJS_CONFIG below), email alerts are skipped silently -
+     the WhatsApp click-to-send alert still works either way since it needs no external library. -->
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+
+<!-- Supabase client - required for login, and for classes/students/points to be saved to the cloud
+     instead of just this one device's browser storage. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+
 <script>
 (function() {
   const STORAGE_KEY = 'classPetGarden_v1';
+
+  // ---------- Parent Alerts (negative-mark notifications) ----------
+  // EMAIL: sent silently in the background via EmailJS (free tier ~200 emails/month) - no teacher
+  // action needed. To enable: create a free account at https://www.emailjs.com, add an Email Service
+  // (e.g. connect your Gmail), create an Email Template with these variable names so they map straight
+  // through: {{parent_name}} {{student_name}} {{reason}} {{points}} {{total_points}} {{class_name}} {{date}}
+  // then paste your 3 IDs below. Leave PUBLIC_KEY as-is to keep email alerts off (WhatsApp still works).
+  const EMAILJS_CONFIG = {
+    PUBLIC_KEY:  'YOUR_EMAILJS_PUBLIC_KEY',   // Account > General
+    SERVICE_ID:  'YOUR_EMAILJS_SERVICE_ID',   // Email Services
+    TEMPLATE_ID: 'YOUR_EMAILJS_TEMPLATE_ID',  // Email Templates
+  };
+  const emailAlertsConfigured = EMAILJS_CONFIG.PUBLIC_KEY && EMAILJS_CONFIG.PUBLIC_KEY !== 'YOUR_EMAILJS_PUBLIC_KEY';
+  if (emailAlertsConfigured && typeof emailjs !== 'undefined') {
+    try { emailjs.init({ publicKey: EMAILJS_CONFIG.PUBLIC_KEY }); } catch (e) { /* library not loaded (offline) - email alerts skip silently */ }
+  }
+
+  // ---------- Supabase (cloud storage - classes/students/points now live here, not just this device) ----------
+  const SUPABASE_CONFIG = {
+    URL: 'https://bovnzlllxikthknezmyp.supabase.co',
+    ANON_KEY: 'sb_publishable_s6uoUCLQyPFoSSZyP-oHzg_jgyEexRo',
+  };
+  const sb = window.supabase.createClient(SUPABASE_CONFIG.URL, SUPABASE_CONFIG.ANON_KEY);
+  let currentTeacherId = null; // set on login, used as class_teachers.teacher_id / point_history.logged_by
+
+  function randomClassCode() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O/1/I, easier for kids to read aloud
+    let code = '';
+    for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+    return code;
+  }
+
+  // Turns one Supabase enrollment (+ its joined student row + point_history rows) into the exact local
+  // student-object shape the rest of this app already expects, so renderDashboard/renderDetail/etc. need
+  // zero changes. `_studentTableId` is stashed for writes that need the underlying students.id (e.g.
+  // saving parent contact info), separate from the enrollment id used everywhere else as `id`.
+  function enrollmentToLocalStudent(enrollment, history) {
+    const s = enrollment.students; // joined row
+    return {
+      id: enrollment.id,
+      _studentTableId: s.id,
+      name: s.name,
+      species: enrollment.species,
+      color: enrollment.color || 'Original',
+      groupId: enrollment.group_id,
+      equipped: enrollment.equipped || { frame: null, background: null, accessory: null },
+      purchases: [], // shop purchases aren't synced to Supabase yet - local-only for now
+      parentName: s.parent_name || '',
+      parentEmail: s.parent_email || '',
+      parentWhatsapp: s.parent_whatsapp || '',
+      parentAlertsEnabled: s.parent_alerts_enabled !== false,
+      history: (history || []).map(h => ({ ts: new Date(h.created_at).getTime(), label: h.label, delta: h.delta })),
+    };
+  }
+
+  // Builds a full local class-state object (categories/shop/thresholds/etc. are local-only defaults for
+  // now - only classes/students/enrollments/points are cloud-backed at this stage) from Supabase rows.
+  async function loadClassFromSupabase(classRow) {
+    const cls = makeNewClass(classRow.name);
+    cls.id = classRow.id; // use the REAL Supabase uuid, not a locally-generated fake id
+    cls.classCode = classRow.class_code;
+    // org_id is null for classes not tied to any organization (shouldn't happen via the app's own
+    // flows anymore, but tolerate it defensively); default to generous caps in that edge case rather
+    // than accidentally blocking a legitimate teacher.
+    const org = classRow.organizations;
+    cls.orgPlan = org ? org.plan : 'free';
+    cls.classCap = org ? org.class_cap : 999;
+    cls.studentCap = org ? org.student_cap : 999;
+
+    const { data: enrollments, error: enrollErr } = await sb
+      .from('enrollments')
+      .select('*, students(*)')
+      .eq('class_id', classRow.id);
+    if (enrollErr) { console.error('Failed to load students for class', classRow.id, enrollErr); return cls; }
+
+    const enrollmentIds = enrollments.map(e => e.id);
+    let historyRows = [];
+    if (enrollmentIds.length) {
+      const { data: hist, error: histErr } = await sb
+        .from('point_history')
+        .select('*')
+        .in('enrollment_id', enrollmentIds)
+        .order('created_at', { ascending: true });
+      if (histErr) console.error('Failed to load point history', histErr);
+      else historyRows = hist;
+    }
+    cls.students = enrollments.map(e =>
+      enrollmentToLocalStudent(e, historyRows.filter(h => h.enrollment_id === e.id))
+    );
+    return cls;
+  }
+
+  // Fetches every class this teacher has access to (owner or co-teacher) and fully hydrates each one.
+  // Fine for a pilot-scale number of classes/students; if this app grows to many large classes, this is
+  // the spot to switch to lazy-loading one class at a time instead of all of them upfront.
+  async function loadAllClassesFromSupabase() {
+    const { data: rows, error } = await sb
+      .from('class_teachers')
+      .select('role, classes(id, name, mode, class_code, org_id, organizations(plan, class_cap, student_cap))')
+      .eq('teacher_id', currentTeacherId);
+    if (error) { console.error('Failed to load classes', error); return []; }
+    const loaded = [];
+    for (const row of rows) {
+      if (!row.classes) continue; // guards against a dangling class_teachers row if a class was deleted
+      loaded.push(await loadClassFromSupabase(row.classes));
+    }
+    return loaded;
+  }
+
+  async function attemptLogin() {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    const errEl = document.getElementById('loginError');
+    errEl.style.display = 'none';
+    if (!email || !password) { errEl.textContent = 'Enter both email and password.'; errEl.style.display = 'block'; return; }
+    const loginBtn = document.getElementById('loginBtn');
+    loginBtn.disabled = true; loginBtn.textContent = 'Logging in...';
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    loginBtn.disabled = false; loginBtn.textContent = 'Log in';
+    if (error) { errEl.textContent = error.message; errEl.style.display = 'block'; return; }
+    currentTeacherId = data.user.id;
+    appState.classes = await loadAllClassesFromSupabase();
+    appState.currentClassId = appState.classes[0] ? appState.classes[0].id : null;
+    boot();
+  }
+  document.getElementById('loginBtn').addEventListener('click', attemptLogin);
+  document.getElementById('loginPassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
+
+  // ---------- Sign-up (self-serve, free tier - creates an org + first class automatically) ----------
+  document.getElementById('goToSignupLink').addEventListener('click', (e) => { e.preventDefault(); showScreen('signup'); });
+  document.getElementById('goToLoginLink').addEventListener('click', (e) => { e.preventDefault(); showScreen('login'); });
+  document.getElementById('signupConsentCheck').addEventListener('change', (e) => {
+    document.getElementById('signupBtn').disabled = !e.target.checked;
+  });
+
+  async function attemptSignUp() {
+    const orgName = document.getElementById('signupOrgName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+    const errEl = document.getElementById('signupError');
+    errEl.style.display = 'none';
+    if (!orgName || !email || !password) { errEl.textContent = 'Please fill in every field.'; errEl.style.display = 'block'; return; }
+    if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+    if (password !== passwordConfirm) { errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return; }
+    if (!document.getElementById('signupConsentCheck').checked) { errEl.textContent = 'Please confirm you agree to the data notice above.'; errEl.style.display = 'block'; return; }
+
+    const btn = document.getElementById('signupBtn');
+    btn.disabled = true; btn.textContent = 'Creating account...';
+    try {
+      const { data: signUpData, error: signUpErr } = await sb.auth.signUp({ email, password });
+      if (signUpErr) throw signUpErr;
+
+      if (!signUpData.session) {
+        // Supabase project has email confirmation turned on - can't create the org/class yet
+        // since there's no authenticated session until the user confirms via the emailed link.
+        // The org + first class get created automatically on their first successful login instead
+        // (see checkSessionAndStart / attemptLogin - both check for a teacher with zero classes).
+        showScreen('login');
+        document.getElementById('loginEmail').value = email;
+        alert('Account created! Please check your email to confirm, then log in here.');
+        return;
+      }
+
+      currentTeacherId = signUpData.user.id;
+      await createOrgAndFirstClass(orgName);
+      appState.classes = await loadAllClassesFromSupabase();
+      appState.currentClassId = appState.classes[0] ? appState.classes[0].id : null;
+      boot();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Create account';
+    }
+  }
+  document.getElementById('signupBtn').addEventListener('click', attemptSignUp);
+
+  // Creates the organization (defaults to the free plan/caps set in Supabase) + one starter class,
+  // for a brand-new self-serve signup. Shared by attemptSignUp and the "confirm your email then log
+  // in" path in checkSessionAndStart, since org creation can only happen once a session actually exists.
+  async function createOrgAndFirstClass(orgName, className) {
+    className = className || 'My Class';
+    const { data: orgRow, error: orgErr } = await sb
+      .from('organizations')
+      .insert({ name: orgName, owner_id: currentTeacherId })
+      .select().single();
+    if (orgErr) throw orgErr;
+    const { data: classRow, error: classErr } = await sb
+      .from('classes')
+      .insert({ name: className, mode: 'primary_school', class_code: randomClassCode(), created_by: currentTeacherId, org_id: orgRow.id })
+      .select().single();
+    if (classErr) throw classErr;
+    const { error: teacherErr } = await sb
+      .from('class_teachers')
+      .insert({ class_id: classRow.id, teacher_id: currentTeacherId, role: 'owner' });
+    if (teacherErr) throw teacherErr;
+    return classRow;
+  }
+
+  async function checkSessionAndStart() {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { showScreen('login'); return; }
+    currentTeacherId = session.user.id;
+    appState.classes = await loadAllClassesFromSupabase();
+    appState.currentClassId = appState.classes[0] ? appState.classes[0].id : null;
+    boot();
+  }
+  // WHATSAPP: no silent-send option exists without a paid backend (see chat writeup) - this opens a
+  // pre-filled wa.me chat and the teacher taps Send once. On/off is per-student (st.parentAlertsEnabled),
+  // set via the checkbox in the student detail modal - defaults to true the first time parent contact is saved.
 
   // ---------- Pet species & evolution art (fully original geometric/vector designs - NOT based on any
   // existing game or franchise). 20 species across 5 "body families" (Puffling/Shardling/Rivulon/
@@ -1570,15 +1883,38 @@
     });
   });
   document.getElementById('settingsBtn').addEventListener('click', () => showScreen('settings'));
+  document.getElementById('logoutBtn').addEventListener('click', async () => {
+    await sb.auth.signOut();
+    appState = { currentClassId: null, classes: [] };
+    state = null;
+    document.getElementById('loginEmail').value = '';
+    document.getElementById('loginPassword').value = '';
+    document.getElementById('tabbar').style.display = 'none';
+    document.getElementById('classSwitcherBar').style.display = 'none';
+    showScreen('login');
+  });
 
   // ---------- Setup (creating the very first class) ----------
-  document.getElementById('createClassBtn').addEventListener('click', () => {
+  document.getElementById('createClassBtn').addEventListener('click', async () => {
     const name = document.getElementById('className').value.trim();
     if (!name) { alert('Please enter a class name.'); return; }
-    const newClass = makeNewClass(name);
-    appState.classes.push(newClass);
-    switchToClass(newClass.id);
-    boot();
+    const btn = document.getElementById('createClassBtn');
+    btn.disabled = true;
+    try {
+      // This screen only asks for a class name (kept minimal for the manual/fallback path - e.g. a
+      // self-serve signup that required email confirmation, so org creation couldn't happen at signup
+      // time). Reusing the class name as the org name too is a reasonable default here; a teacher can
+      // rename their org later. Paid institutional orgs are still created manually by us in Supabase
+      // ahead of time, so this path is really just for the free/self-serve fallback case.
+      await createOrgAndFirstClass(name, name);
+      appState.classes = await loadAllClassesFromSupabase();
+      appState.currentClassId = appState.classes[0] ? appState.classes[0].id : null;
+      boot();
+    } catch (err) {
+      alert('Could not create the class: ' + err.message);
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   // ---------- Class switcher (creating/switching/renaming/deleting classes) ----------
@@ -1774,6 +2110,88 @@
     } catch (e) { /* audio not available in this environment - fail silently */ }
   }
 
+  // ---------- Parent alert engine (fires on negative-mark history entries) ----------
+  // Strips spaces/dashes/parens/+ so "wa.me" gets bare digits with country code, e.g. "+60 12-345 6789" -> "60123456789".
+  function normalizeWhatsAppNumber(raw) {
+    return (raw || '').replace(/[^\d]/g, '');
+  }
+  function buildParentAlertMessage(st, entry) {
+    const total = totalPoints(st);
+    return `Hi ${st.parentName || 'there'}, this is an automated update from ${state.className || 'the class'}: `
+      + `${st.name} received a negative mark - "${entry.label}" (${entry.delta} pts). `
+      + `Current total: ${total} pts. Sent on ${new Date(entry.ts).toLocaleDateString()}.`;
+  }
+  let parentAlertTimer = null;
+  // Fires the EmailJS send (fire-and-forget) if this student has a parent email on file. Returns true
+  // if a send was attempted, so callers can report "emailed automatically" without blocking on the
+  // network round-trip (EmailJS gives no reliable pre-send confirmation worth waiting on here).
+  function sendParentEmailAlert(st, entry) {
+    if (!st.parentEmail || !emailAlertsConfigured || typeof emailjs === 'undefined') return false;
+    emailjs.send(EMAILJS_CONFIG.SERVICE_ID, EMAILJS_CONFIG.TEMPLATE_ID, {
+      parent_name: st.parentName || 'Parent/Guardian',
+      student_name: st.name,
+      reason: entry.label,
+      points: entry.delta,
+      total_points: totalPoints(st),
+      class_name: state.className || '',
+      date: new Date(entry.ts).toLocaleDateString(),
+      to_email: st.parentEmail,
+    }).catch(err => console.warn('Parent email alert failed to send:', err));
+    return true;
+  }
+  function buildParentWaLink(st, entry) {
+    if (!st.parentWhatsapp) return null;
+    return `https://wa.me/${normalizeWhatsAppNumber(st.parentWhatsapp)}?text=${encodeURIComponent(buildParentAlertMessage(st, entry))}`;
+  }
+  function showParentAlertToast(items) {
+    // items: [{ st, waLink, emailSent }, ...] - 1 item for a single quick-action tap, many for Daily Check-in.
+    const el = document.getElementById('parentAlertToast');
+    const emailedCount = items.filter(i => i.emailSent).length;
+    const title = items.length === 1
+      ? `⚠️ Negative mark logged for ${escapeHtml(items[0].st.name)}`
+      : `⚠️ Negative marks logged for ${items.length} student(s)`;
+    const summary = emailedCount ? `✅ ${emailedCount} parent(s) emailed automatically. ` : '';
+    const rows = items.filter(i => i.waLink).map(i => `
+      <div class="pa-row" style="margin-top:6px;">
+        <span style="flex:1; align-self:center;">${escapeHtml(i.st.name)}</span>
+        <a class="pa-btn pa-wa" style="flex:0 0 auto; padding:6px 10px;" href="${i.waLink}" target="_blank" rel="noopener">📱 WhatsApp</a>
+      </div>`).join('');
+    el.innerHTML = `
+      <div class="pa-title">${title}</div>
+      <div>${summary}${rows ? 'Tap to also notify on WhatsApp:' : ''}</div>
+      <div style="max-height:180px; overflow-y:auto;">${rows}</div>
+      <div class="pa-row"><button class="pa-btn pa-dismiss" id="parentAlertDismissBtn" style="flex:1;">Dismiss</button></div>
+    `;
+    el.classList.add('show');
+    document.getElementById('parentAlertDismissBtn').onclick = () => el.classList.remove('show');
+    clearTimeout(parentAlertTimer);
+    parentAlertTimer = setTimeout(() => el.classList.remove('show'), 20000); // longer than the celebration toast since it may need a tap, more so with a list
+  }
+  // Called right after any st.history.push(...) with a negative delta. Silently does nothing if the
+  // student has no parent contact saved, or if the teacher unchecked alerts for this student.
+  function maybeAlertParent(st, entry) {
+    if (entry.delta >= 0) return;
+    if (!st || st.parentAlertsEnabled === false) return;
+    if (!st.parentEmail && !st.parentWhatsapp) return;
+    const emailSent = sendParentEmailAlert(st, entry);
+    const waLink = buildParentWaLink(st, entry);
+    if (emailSent || waLink) showParentAlertToast([{ st, waLink, emailSent }]);
+  }
+  // Batched version for bulk operations (currently: Daily Check-in's "homework missing" penalty) so a
+  // whole class's worth of alerts collapses into one toast instead of N toasts overwriting each other.
+  function maybeAlertParentsBatch(pairs) {
+    const items = [];
+    pairs.forEach(({ st, entry }) => {
+      if (entry.delta >= 0) return;
+      if (!st || st.parentAlertsEnabled === false) return;
+      if (!st.parentEmail && !st.parentWhatsapp) return;
+      const emailSent = sendParentEmailAlert(st, entry);
+      const waLink = buildParentWaLink(st, entry);
+      if (emailSent || waLink) items.push({ st, waLink, emailSent });
+    });
+    if (items.length) showParentAlertToast(items);
+  }
+
   // ---------- Dashboard render ----------
   function renderDashboard() {
     document.getElementById('dashClassName').textContent = state.className;
@@ -1933,6 +2351,7 @@
     const today = todayKey(Date.now());
     const checkinLabelSet = new Set(Object.values(CHECKIN_LABELS));
     let presentCount = 0, absentCount = 0, submittedCount = 0, missingCount = 0;
+    const negativeAlertPairs = [];
     state.students.forEach(st => {
       // Replace (not stack) today's previous check-in entries for this student first.
       st.history = st.history.filter(h => !(todayKey(h.ts) === today && checkinLabelSet.has(h.label)));
@@ -1945,7 +2364,9 @@
         presentCount++;
       }
       if (checkinMissingIds.has(st.id)) {
-        st.history.push({ ts: now, label: CHECKIN_LABELS.hwMissing, delta: -2 });
+        const entry = { ts: now, label: CHECKIN_LABELS.hwMissing, delta: -2 };
+        st.history.push(entry);
+        negativeAlertPairs.push({ st, entry });
         missingCount++;
       } else {
         st.history.push({ ts: now, label: CHECKIN_LABELS.hwDone, delta: 1 });
@@ -1959,6 +2380,7 @@
     renderDashboard();
     renderLeaderboard();
     showCelebration(`📋 Check-in saved: ${presentCount} present, ${absentCount} absent, ${submittedCount} homework in, ${missingCount} missing.`);
+    maybeAlertParentsBatch(negativeAlertPairs);
   });
 
   // Auto-popup: this is a static page with no server/push-notification backend, so it can only fire
@@ -2003,21 +2425,50 @@
     renderColorPicker('colorPicker', selectedColor, (name) => { selectedColor = name; updateAddPreview(); });
     updateAddPreview();
     document.getElementById('newStudentName').value = '';
+    document.getElementById('newParentName').value = '';
+    document.getElementById('newParentEmail').value = '';
+    document.getElementById('newParentWhatsapp').value = '';
     document.getElementById('addStudentModal').classList.add('active');
   }
   document.getElementById('addStudentBtn').addEventListener('click', openAddStudentModal);
-  document.getElementById('confirmAddStudentBtn').addEventListener('click', () => {
+  document.getElementById('confirmAddStudentBtn').addEventListener('click', async () => {
     const name = document.getElementById('newStudentName').value.trim();
     if (!name) { alert('Please enter a student name.'); return; }
-    state.students.push({
-      id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-      name, species: selectedSpecies, color: selectedColor, history: [], groupId: null, purchases: [],
-      equipped: { frame: null, background: null, accessory: null },
-    });
-    saveState();
-    closeModal('addStudentModal');
-    renderDashboard();
-    openCertificate(name, selectedSpecies, selectedColor);
+    if (state.students.length >= (state.studentCap || 999)) {
+      alert(`Your ${state.orgPlan || 'free'} plan is capped at ${state.studentCap} students for this class. Upgrade to add more.`);
+      return;
+    }
+    const parentName = document.getElementById('newParentName').value.trim();
+    const parentEmail = document.getElementById('newParentEmail').value.trim();
+    const parentWhatsapp = document.getElementById('newParentWhatsapp').value.trim();
+    const btn = document.getElementById('confirmAddStudentBtn');
+    btn.disabled = true;
+    try {
+      const { data: studentRow, error: studentErr } = await sb
+        .from('students')
+        .insert({ name, parent_name: parentName, parent_email: parentEmail, parent_whatsapp: parentWhatsapp })
+        .select().single();
+      if (studentErr) throw studentErr;
+      const { data: enrollRow, error: enrollErr } = await sb
+        .from('enrollments')
+        .insert({ class_id: state.id, student_id: studentRow.id, species: selectedSpecies, color: selectedColor })
+        .select().single();
+      if (enrollErr) throw enrollErr;
+      state.students.push({
+        id: enrollRow.id, _studentTableId: studentRow.id,
+        name, species: selectedSpecies, color: selectedColor, history: [], groupId: null, purchases: [],
+        equipped: { frame: null, background: null, accessory: null },
+        parentName, parentEmail, parentWhatsapp, parentAlertsEnabled: true,
+      });
+      saveState();
+      closeModal('addStudentModal');
+      renderDashboard();
+      openCertificate(name, selectedSpecies, selectedColor);
+    } catch (err) {
+      alert('Could not add the student: ' + err.message);
+    } finally {
+      btn.disabled = false;
+    }
   });
 
   function openCertificate(name, species, color) {
@@ -2082,6 +2533,9 @@
   // ---------- Import roster (Excel/CSV) ----------
   const NAME_COLUMNS = ['name', 'student name', 'student', 'full name'];
   const GROUP_COLUMNS = ['group', 'team', 'group name'];
+  const PARENT_NAME_COLUMNS = ['parent name', 'parent', 'guardian name', 'guardian', 'parent/guardian name'];
+  const PARENT_EMAIL_COLUMNS = ['parent email', 'email', 'guardian email', 'parent e-mail'];
+  const PARENT_WHATSAPP_COLUMNS = ['parent whatsapp', 'whatsapp', 'parent phone', 'phone', 'guardian whatsapp', 'guardian phone'];
   let pendingImportRows = [];
   let pendingImportFileName = '';
   let importMode = 'existing'; // 'existing' (into active class) | 'setup' (creates the very first class) | 'newClass' (creates an additional class)
@@ -2124,9 +2578,15 @@
     return rows.map(row => {
       const nameKey = findColumn(row, NAME_COLUMNS);
       const groupKey = findColumn(row, GROUP_COLUMNS);
+      const parentNameKey = findColumn(row, PARENT_NAME_COLUMNS);
+      const parentEmailKey = findColumn(row, PARENT_EMAIL_COLUMNS);
+      const parentWhatsappKey = findColumn(row, PARENT_WHATSAPP_COLUMNS);
       return {
         name: nameKey ? row[nameKey] : '',
         groupName: groupKey ? row[groupKey] : '',
+        parentName: parentNameKey ? row[parentNameKey] : '',
+        parentEmail: parentEmailKey ? row[parentEmailKey] : '',
+        parentWhatsapp: parentWhatsappKey ? row[parentWhatsappKey] : '',
       };
     }).filter(r => r.name);
   }
@@ -2139,12 +2599,15 @@
       confirmBtn.disabled = true;
       return;
     }
-    wrap.innerHTML = `<p class="muted">${pendingImportRows.length} student(s) found:</p>` +
+    const withParentCount = pendingImportRows.filter(r => r.parentEmail || r.parentWhatsapp).length;
+    wrap.innerHTML = `<p class="muted">${pendingImportRows.length} student(s) found` +
+      (withParentCount ? ` - ${withParentCount} with parent contact info` : '') + `:</p>` +
       pendingImportRows.map(r => `
         <div class="hof-row">
           <div class="hof-info">
             <div class="hof-name">${escapeHtml(r.name)}</div>
             ${r.groupName ? `<div class="hof-date">Group: ${escapeHtml(r.groupName)}</div>` : ''}
+            ${(r.parentName || r.parentEmail || r.parentWhatsapp) ? `<div class="hof-date">Parent: ${escapeHtml([r.parentName, r.parentEmail, r.parentWhatsapp].filter(Boolean).join(' · '))}</div>` : ''}
           </div>
         </div>
       `).join('');
@@ -2178,7 +2641,10 @@
   });
 
   document.getElementById('downloadTemplateBtn').addEventListener('click', () => {
-    const csv = 'Name,Group\nAli,Team Falcon\nBeng,Team Falcon\nCindy,Team Tiger\n';
+    const csv = 'Name,Group,Parent Name,Parent Email,Parent WhatsApp\n' +
+      'Ali,Team Falcon,Mrs Aminah,aminah@example.com,60123456789\n' +
+      'Beng,Team Falcon,Mr Tan,tan@example.com,60129876543\n' +
+      'Cindy,Team Tiger,,,\n';
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -2229,57 +2695,87 @@
     }
   });
 
-  document.getElementById('confirmImportBtn').addEventListener('click', () => {
+  document.getElementById('confirmImportBtn').addEventListener('click', async () => {
     const count = pendingImportRows.length;
-    let targetClass;
-    let createdNew = false;
-    if (importMode === 'setup' || importMode === 'newClass') {
-      const nameInputId = importMode === 'setup' ? 'className' : 'newClassName';
-      let name = document.getElementById(nameInputId).value.trim();
-      if (!name) {
-        name = pendingImportFileName.replace(/\.(csv|xlsx|xls)$/i, '').replace(/[_-]+/g, ' ').trim();
+    const btn = document.getElementById('confirmImportBtn');
+    btn.disabled = true;
+    const originalBtnText = btn.textContent;
+    try {
+      let targetClass;
+      let createdNew = false;
+      if (importMode === 'setup' || importMode === 'newClass') {
+        const nameInputId = importMode === 'setup' ? 'className' : 'newClassName';
+        let name = document.getElementById(nameInputId).value.trim();
+        if (!name) name = pendingImportFileName.replace(/\.(csv|xlsx|xls)$/i, '').replace(/[_-]+/g, ' ').trim();
+        if (!name) name = 'My Class';
+        btn.textContent = 'Creating class...';
+        const classRow = await createOrgAndFirstClass(name, name); // org name defaults to class name here - fine for this fallback path, renameable later
+        targetClass = makeNewClass(name);
+        targetClass.id = classRow.id;
+        targetClass.classCode = classRow.class_code;
+        targetClass.orgPlan = 'free'; // a freshly self-serve-created org always starts free
+        targetClass.classCap = 1;
+        targetClass.studentCap = 40;
+        appState.classes.push(targetClass);
+        createdNew = true;
+      } else {
+        targetClass = state;
       }
-      if (!name) name = 'My Class';
-      targetClass = makeNewClass(name);
-      appState.classes.push(targetClass);
-      createdNew = true;
-    } else {
-      targetClass = state;
-    }
-    let speciesIdx = targetClass.students.length;
-    pendingImportRows.forEach(item => {
-      let groupId = null;
-      if (item.groupName) {
-        let g = targetClass.groups.find(g => g.name.toLowerCase() === item.groupName.toLowerCase());
-        if (!g) {
-          g = { id: 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), name: item.groupName };
-          targetClass.groups.push(g);
+
+      const cap = targetClass.studentCap || 999;
+      if (targetClass.students.length + pendingImportRows.length > cap) {
+        throw new Error(`Your ${targetClass.orgPlan || 'free'} plan allows up to ${cap} students in this class - this file would bring it to ${targetClass.students.length + pendingImportRows.length}. Remove some rows, or upgrade your plan.`);
+      }
+
+      let speciesIdx = targetClass.students.length;
+      let imported = 0;
+      for (const item of pendingImportRows) {
+        btn.textContent = `Importing ${imported + 1}/${count}...`;
+        let groupId = null;
+        if (item.groupName) {
+          let g = targetClass.groups.find(g => g.name.toLowerCase() === item.groupName.toLowerCase());
+          if (!g) {
+            g = { id: 'g_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7), name: item.groupName };
+            targetClass.groups.push(g);
+          }
+          groupId = g.id;
         }
-        groupId = g.id;
+        const species = SPECIES[speciesIdx % SPECIES.length];
+        const { data: studentRow, error: studentErr } = await sb
+          .from('students')
+          .insert({ name: item.name, parent_name: item.parentName || '', parent_email: item.parentEmail || '', parent_whatsapp: item.parentWhatsapp || '' })
+          .select().single();
+        if (studentErr) { console.error('Skipped a row - student insert failed:', item.name, studentErr); continue; }
+        const { data: enrollRow, error: enrollErr } = await sb
+          .from('enrollments')
+          .insert({ class_id: targetClass.id, student_id: studentRow.id, species, color: 'Original' })
+          .select().single();
+        if (enrollErr) { console.error('Skipped a row - enrollment insert failed:', item.name, enrollErr); continue; }
+        targetClass.students.push({
+          id: enrollRow.id, _studentTableId: studentRow.id,
+          name: item.name, species, color: 'Original', history: [], groupId, purchases: [],
+          equipped: { frame: null, background: null, accessory: null },
+          parentName: item.parentName || '', parentEmail: item.parentEmail || '', parentWhatsapp: item.parentWhatsapp || '',
+          parentAlertsEnabled: true,
+        });
+        speciesIdx++;
+        imported++;
       }
-      targetClass.students.push({
-        id: 'st_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-        name: item.name,
-        species: SPECIES[speciesIdx % SPECIES.length],
-        color: 'Original',
-        history: [],
-        groupId,
-        purchases: [],
-        equipped: { frame: null, background: null, accessory: null },
-      });
-      speciesIdx++;
-    });
-    if (createdNew) {
-      switchToClass(targetClass.id); // also saves
-    } else {
-      saveState();
+
+      if (createdNew) switchToClass(targetClass.id);
+      else saveState();
+      pendingImportRows = [];
+      closeModal('importModal');
+      if (importMode === 'newClass') closeModal('newClassModal');
+      importMode = 'existing';
+      boot();
+      showCelebration(`🎉 ${imported} student(s) imported!`);
+    } catch (err) {
+      alert('Import failed partway through: ' + err.message + '. Any students already saved before the error are kept.');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = originalBtnText;
     }
-    pendingImportRows = [];
-    closeModal('importModal');
-    if (importMode === 'newClass') closeModal('newClassModal');
-    importMode = 'existing';
-    boot();
-    showCelebration(`🎉 ${count} student(s) imported!`);
   });
 
   // ---------- Student detail / quick actions ----------
@@ -2320,6 +2816,11 @@
       saveState();
     };
 
+    document.getElementById('detailParentName').value = st.parentName || '';
+    document.getElementById('detailParentEmail').value = st.parentEmail || '';
+    document.getElementById('detailParentWhatsapp').value = st.parentWhatsapp || '';
+    document.getElementById('detailParentAlertsToggle').checked = st.parentAlertsEnabled !== false;
+
     // Grouped so a teacher scanning mid-class can jump straight to "Academic" or "Behavior & Conduct"
     // instead of hunting through one long flat row of buttons.
     const qa = document.getElementById('quickActions');
@@ -2337,7 +2838,8 @@
         btn.textContent = `${cat.name} (${cat.points > 0 ? '+' : ''}${cat.points})`;
         btn.addEventListener('click', () => {
           const beforeStage = levelFor(totalPoints(st)).stage;
-          st.history.push({ ts: Date.now(), label: cat.name, delta: cat.points });
+          const entry = { ts: Date.now(), label: cat.name, delta: cat.points };
+          st.history.push(entry);
           const afterLvl = levelFor(totalPoints(st));
           saveState();
           renderDetail();
@@ -2347,6 +2849,10 @@
             showCelebration(`🎉 ${st.name}'s pet leveled up to ${afterLvl.label}!`);
             playLevelUpSound();
           }
+          maybeAlertParent(st, entry);
+          sb.from('point_history').insert({
+            enrollment_id: st.id, label: entry.label, delta: entry.delta, logged_by: currentTeacherId,
+          }).then(({ error }) => { if (error) console.error('Point not saved to cloud (kept locally):', error); });
         });
         row.appendChild(btn);
       });
@@ -2483,7 +2989,8 @@
     const points = parseInt(document.getElementById('customEventPoints').value, 10);
     if (!label || isNaN(points)) { alert('Enter a reason and a point value.'); return; }
     const beforeStage = levelFor(totalPoints(st)).stage;
-    st.history.push({ ts: Date.now(), label, delta: points });
+    const entry = { ts: Date.now(), label, delta: points };
+    st.history.push(entry);
     const afterLvl = levelFor(totalPoints(st));
     saveState();
     document.getElementById('customEventLabel').value = '';
@@ -2494,6 +3001,28 @@
     if (afterLvl.stage > beforeStage) {
       showCelebration(`🎉 ${st.name}'s pet leveled up to ${afterLvl.label}!`);
       playLevelUpSound();
+    }
+    maybeAlertParent(st, entry);
+    sb.from('point_history').insert({
+      enrollment_id: st.id, label: entry.label, delta: entry.delta, logged_by: currentTeacherId,
+    }).then(({ error }) => { if (error) console.error('Point not saved to cloud (kept locally):', error); });
+  });
+
+  // ---------- Parent contact save (detail modal) ----------
+  document.getElementById('saveParentContactBtn').addEventListener('click', () => {
+    const st = state.students.find(s => s.id === currentDetailId);
+    if (!st) return;
+    st.parentName = document.getElementById('detailParentName').value.trim();
+    st.parentEmail = document.getElementById('detailParentEmail').value.trim();
+    st.parentWhatsapp = document.getElementById('detailParentWhatsapp').value.trim();
+    st.parentAlertsEnabled = document.getElementById('detailParentAlertsToggle').checked;
+    saveState();
+    showCelebration(`📱 Parent contact saved for ${st.name}`);
+    if (st._studentTableId) {
+      sb.from('students').update({
+        parent_name: st.parentName, parent_email: st.parentEmail,
+        parent_whatsapp: st.parentWhatsapp, parent_alerts_enabled: st.parentAlertsEnabled,
+      }).eq('id', st._studentTableId).then(({ error }) => { if (error) console.error('Parent contact not saved to cloud:', error); });
     }
   });
 
@@ -3001,7 +3530,7 @@
     showScreen('dashboard');
     maybeAutoShowDailyCheckin();
   }
-  boot();
+  checkSessionAndStart();
 })();
 </script>
 
