@@ -317,7 +317,7 @@
   .detail-history {
     max-height: 180px; overflow-y: auto; margin-top: 10px; font-size: 12px; border-top: 1px solid var(--border); padding-top: 8px;
   }
-  .detail-history .entry { display: flex; justify-content: space-between; padding: 4px 0; border-bottom: 1px dashed var(--border); }
+  .detail-history .entry { display: flex; justify-content: space-between; align-items: flex-start; padding: 4px 0; border-bottom: 1px dashed var(--border); }
   .detail-history .entry.pos { color: var(--good); }
   .detail-history .entry.neg { color: var(--bad); }
 
@@ -434,6 +434,20 @@
   }
   #parentAlertToast .pa-wa { background: #25D366; color: #063; }
   #parentAlertToast .pa-dismiss { background: rgba(255,255,255,0.15); color: white; }
+
+  /* Badge Case - earned badges show their real color/ring by tier; unearned ones sit greyed-out and
+     dim so the collection itself is visible (drives "just a few more to go" completionism) without
+     spoiling names of things not yet unlocked - only earned badges show their name below the icon. */
+  .badge-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 10px; margin-top: 8px; }
+  .badge-tile { text-align: center; font-size: 11px; color: var(--muted); }
+  .badge-tile .badge-icon {
+    width: 48px; height: 48px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 22px; margin: 0 auto 4px; border: 3px solid var(--border); background: var(--card);
+  }
+  .badge-tile.earned .badge-icon { border-color: var(--gold, #D4A017); background: #FFF8E6; }
+  .badge-tile.locked .badge-icon { filter: grayscale(1); opacity: 0.35; }
+  .badge-tile.locked .badge-name { opacity: 0.35; }
+  .badge-tile .badge-name { display: block; line-height: 1.2; }
 
   /* Hall of Fame */
   .hof-row {
@@ -863,6 +877,10 @@
       </div>
       <button class="secondary" id="logCustomEventBtn" style="width:100%; margin-top:8px;">Log it</button>
     </div>
+    <div style="border-top:1px solid var(--border); margin-top:12px; padding-top:10px;">
+      <label style="margin-top:0;">🏅 Badge Case</label>
+      <div id="badgeCase" class="badge-grid"></div>
+    </div>
     <div class="detail-history" id="detailHistory"></div>
     <button class="primary" id="visitShopBtn" style="margin-top:14px;">🛍 Visit Shop</button>
     <button class="secondary" id="customizePetBtn" style="width:100%; margin-top:10px;">🎨 Customize my pet</button>
@@ -964,6 +982,7 @@
 
     const enrollmentIds = enrollments.map(e => e.id);
     let historyRows = [];
+    let badgeRows = [];
     if (enrollmentIds.length) {
       const { data: hist, error: histErr } = await sb
         .from('point_history')
@@ -972,10 +991,19 @@
         .order('created_at', { ascending: true });
       if (histErr) console.error('Failed to load point history', histErr);
       else historyRows = hist;
+
+      const { data: badges, error: badgeErr } = await sb
+        .from('student_badges')
+        .select('enrollment_id, badge_id')
+        .in('enrollment_id', enrollmentIds);
+      if (badgeErr) console.error('Failed to load earned badges', badgeErr);
+      else badgeRows = badges;
     }
-    cls.students = enrollments.map(e =>
-      enrollmentToLocalStudent(e, historyRows.filter(h => h.enrollment_id === e.id))
-    );
+    cls.students = enrollments.map(e => {
+      const local = enrollmentToLocalStudent(e, historyRows.filter(h => h.enrollment_id === e.id));
+      local.earnedBadgeIds = new Set(badgeRows.filter(b => b.enrollment_id === e.id).map(b => b.badge_id));
+      return local;
+    });
     return cls;
   }
 
@@ -983,6 +1011,7 @@
   // Fine for a pilot-scale number of classes/students; if this app grows to many large classes, this is
   // the spot to switch to lazy-loading one class at a time instead of all of them upfront.
   async function loadAllClassesFromSupabase() {
+    if (!ALL_BADGES.length) await loadAllBadges();
     const { data: rows, error } = await sb
       .from('class_teachers')
       .select('role, classes(id, name, mode, class_code, org_id, organizations(plan, class_cap, student_cap))')
@@ -2283,6 +2312,164 @@
   let dailyCheckinDismissedThisSession = false; // closing without saving won't re-nag again until reload/next day
   const CHECKIN_LABELS = { present: 'Present', absent: 'Absent', hwDone: 'Homework submitted', hwMissing: 'Homework missing' };
 
+  // ---------- Badge engine ----------
+  // Every metric below is computed as "best/most ever achieved across full history," never "current
+  // state" - this is deliberate: a badge must stay earned forever once unlocked, even if a later bad
+  // day would make the raw current number dip back below the threshold.
+  let ALL_BADGES = []; // loaded once after login (badges table rarely changes)
+  async function loadAllBadges() {
+    const { data, error } = await sb.from('badges').select('*').order('sort_order');
+    if (error) { console.error('Failed to load badge definitions', error); ALL_BADGES = []; return; }
+    ALL_BADGES = data;
+  }
+
+  function isoWeekKey(d) {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    return date.getUTCFullYear() + '-W' + weekNo;
+  }
+  // Longest run of consecutive TRUE values among an already-sorted list of day-keys. Deliberately does
+  // NOT require calendar-adjacent dates (e.g. a Fri->Mon streak isn't broken by the weekend) - "days
+  // with data" is what matters for a school context, not raw calendar days.
+  function longestStreak(sortedDayKeys, predicate) {
+    let longest = 0, current = 0;
+    sortedDayKeys.forEach(k => {
+      if (predicate(k)) { current++; if (current > longest) longest = current; }
+      else current = 0;
+    });
+    return longest;
+  }
+  // For check-in style streaks (Homework/Attendance): longest run of consecutive check-in DAYS (days
+  // where either the success or failure label was logged) where the result was the success label.
+  function longestLabelStreak(hist, successLabel, failureLabels) {
+    const dayResult = {};
+    hist.forEach(h => {
+      const k = todayKey(h.ts);
+      if (h.label === successLabel) dayResult[k] = true;
+      else if (failureLabels.includes(h.label) && !(k in dayResult)) dayResult[k] = false;
+    });
+    const days = Object.keys(dayResult).sort();
+    let longest = 0, current = 0;
+    days.forEach(k => {
+      if (dayResult[k]) { current++; if (current > longest) longest = current; }
+      else current = 0;
+    });
+    return longest;
+  }
+  function countComebacks(hist) {
+    let running = 0, wasNegative = false, count = 0;
+    hist.slice().sort((a, b) => a.ts - b.ts).forEach(h => {
+      running += h.delta;
+      if (running <= 0) wasNegative = true;
+      else if (wasNegative && running > 0) { count++; wasNegative = false; }
+    });
+    return count;
+  }
+
+  function computeStudentMetrics(st) {
+    const hist = st.history.slice().sort((a, b) => a.ts - b.ts);
+    const m = {};
+
+    let running = 0, maxTotal = 0;
+    hist.forEach(h => { running += h.delta; if (running > maxTotal) maxTotal = running; });
+    m.max_total_points = maxTotal;
+
+    m.positive_entries_count = hist.filter(h => h.delta > 0).length;
+
+    const byDay = {}, byWeek = {}, byMonth = {};
+    const dayHasPositive = {}, dayHasNegative = {};
+    hist.forEach(h => {
+      const d = new Date(h.ts);
+      const dayKey = todayKey(h.ts);
+      byDay[dayKey] = (byDay[dayKey] || 0) + h.delta;
+      byWeek[isoWeekKey(d)] = (byWeek[isoWeekKey(d)] || 0) + h.delta;
+      byMonth[d.getFullYear() + '-' + d.getMonth()] = (byMonth[d.getFullYear() + '-' + d.getMonth()] || 0) + h.delta;
+      if (h.delta > 0) dayHasPositive[dayKey] = true;
+      if (h.delta < 0) dayHasNegative[dayKey] = true;
+    });
+    m.best_day_points = Object.values(byDay).length ? Math.max(0, ...Object.values(byDay)) : 0;
+    m.best_week_points = Object.values(byWeek).length ? Math.max(0, ...Object.values(byWeek)) : 0;
+    m.best_month_points = Object.values(byMonth).length ? Math.max(0, ...Object.values(byMonth)) : 0;
+
+    const allDayKeys = Object.keys(dayHasPositive).concat(Object.keys(dayHasNegative))
+      .filter((v, i, a) => a.indexOf(v) === i).sort();
+    m.max_perfect_streak = longestStreak(allDayKeys, k => dayHasPositive[k] && !dayHasNegative[k]);
+    m.max_active_streak = longestStreak(allDayKeys, k => dayHasPositive[k]);
+    m.active_days_count = allDayKeys.length;
+    m.clean_days_count = allDayKeys.filter(k => dayHasPositive[k] && !dayHasNegative[k]).length;
+
+    m.max_homework_streak = longestLabelStreak(hist, CHECKIN_LABELS.hwDone, [CHECKIN_LABELS.hwMissing]);
+    m.max_attendance_streak = longestLabelStreak(hist, CHECKIN_LABELS.present, [CHECKIN_LABELS.absent]);
+
+    m.pet_stage = levelFor(totalPoints(st)).stage;
+    m.comeback_count = countComebacks(hist);
+    m.first_entry_logged = hist.length >= 1 ? 1 : 0;
+    m.first_positive_entry = m.positive_entries_count >= 1 ? 1 : 0;
+    m.perfect_day_bonus_count = hist.filter(h => h.label === 'Perfect Day bonus').length;
+    m.has_group = st.groupId ? 1 : 0;
+    m.shop_purchase_count = (st.purchases || []).length;
+    m.distinct_positive_labels_count = new Set(hist.filter(h => h.delta > 0).map(h => h.label)).size;
+
+    // group_max_total_points needs sibling students' data, not just st alone - computed here since
+    // state.students is in scope at call time.
+    if (st.groupId) {
+      const teammates = state.students.filter(s => s.groupId === st.groupId);
+      let groupRunning = 0, groupMax = 0;
+      const groupEvents = teammates.flatMap(s => s.history).sort((a, b) => a.ts - b.ts);
+      groupEvents.forEach(h => { groupRunning += h.delta; if (groupRunning > groupMax) groupMax = groupRunning; });
+      m.group_max_total_points = groupMax;
+    } else {
+      m.group_max_total_points = 0;
+    }
+    return m;
+  }
+
+  function buildBadgeParentMessage(st, badge) {
+    return `Great news from ${state.className || 'the class'}! ${st.name} just earned the "${badge.name}" badge - ${badge.description}. 🎉`;
+  }
+  function showBadgeToast(st, badge, waLink) {
+    const el = document.getElementById('parentAlertToast');
+    el.innerHTML = `
+      <div class="pa-title">🏅 ${escapeHtml(st.name)} earned: ${escapeHtml(badge.name)}</div>
+      <div>${escapeHtml(badge.description)}${waLink ? ' - tap to share the good news with the parent:' : ''}</div>
+      <div class="pa-row">
+        ${waLink ? `<a class="pa-btn pa-wa" href="${waLink}" target="_blank" rel="noopener">📱 Share on WhatsApp</a>` : ''}
+        <button class="pa-btn pa-dismiss" id="parentAlertDismissBtn" style="${waLink ? '' : 'flex:1;'}">Dismiss</button>
+      </div>
+    `;
+    el.classList.add('show');
+    document.getElementById('parentAlertDismissBtn').onclick = () => el.classList.remove('show');
+    clearTimeout(parentAlertTimer);
+    parentAlertTimer = setTimeout(() => el.classList.remove('show'), 15000);
+  }
+  // Checks one student against every badge definition and awards any newly-crossed thresholds. Safe to
+  // call after any point-logging event - badges tied to less frequent triggers (shop purchases, joining
+  // a group) simply get picked up the next time this runs, rather than needing a hook on every possible
+  // action in the app.
+  async function checkAndAwardBadges(st) {
+    if (!ALL_BADGES.length || !st._studentTableId) return; // badges not loaded yet, or student not cloud-synced
+    if (!st.earnedBadgeIds) st.earnedBadgeIds = new Set();
+    const metrics = computeStudentMetrics(st);
+    const newlyEarned = ALL_BADGES.filter(b =>
+      !st.earnedBadgeIds.has(b.id) && (metrics[b.metric] || 0) >= b.threshold
+    );
+    if (!newlyEarned.length) return;
+    for (const badge of newlyEarned) {
+      const { error } = await sb.from('student_badges').insert({ enrollment_id: st.id, badge_id: badge.id });
+      if (error) { console.error('Could not save badge', badge.code, error); continue; }
+      st.earnedBadgeIds.add(badge.id);
+      showCelebration(`🏅 ${st.name} earned: ${badge.name}!`);
+      if (st.parentWhatsapp && st.parentAlertsEnabled !== false) {
+        const waLink = `https://wa.me/${normalizeWhatsAppNumber(st.parentWhatsapp)}?text=${encodeURIComponent(buildBadgeParentMessage(st, badge))}`;
+        showBadgeToast(st, badge, waLink);
+      }
+    }
+    renderDetail();
+  }
+
   function renderCheckinLists() {
     document.getElementById('dailyCheckinDateLabel').textContent = new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
@@ -2381,6 +2568,11 @@
     renderLeaderboard();
     showCelebration(`📋 Check-in saved: ${presentCount} present, ${absentCount} absent, ${submittedCount} homework in, ${missingCount} missing.`);
     maybeAlertParentsBatch(negativeAlertPairs);
+    // Note: Daily Check-in entries aren't synced to Supabase yet (existing gap, not new) - badges still
+    // get checked and permanently saved once earned, but Homework/Attendance Streak specifically rely on
+    // check-in history that currently only lives in this browser's localStorage, not the cloud. Worth
+    // wiring Daily Check-in to Supabase before leaning on those two badge families for a real pilot.
+    state.students.forEach(st => checkAndAwardBadges(st));
   });
 
   // Auto-popup: this is a static page with no server/push-notification backend, so it can only fire
@@ -2784,6 +2976,8 @@
     currentDetailId = id;
     renderDetail();
     document.getElementById('detailModal').classList.add('active');
+    const st = state.students.find(s => s.id === id);
+    if (st) checkAndAwardBadges(st); // catches anything earned historically that wasn't caught live
   }
   function renderDetail() {
     const st = state.students.find(s => s.id === currentDetailId);
@@ -2853,11 +3047,25 @@
           sb.from('point_history').insert({
             enrollment_id: st.id, label: entry.label, delta: entry.delta, logged_by: currentTeacherId,
           }).then(({ error }) => { if (error) console.error('Point not saved to cloud (kept locally):', error); });
+          checkAndAwardBadges(st);
         });
         row.appendChild(btn);
       });
       qa.appendChild(row);
     });
+
+    const badgeCase = document.getElementById('badgeCase');
+    if (!ALL_BADGES.length) {
+      badgeCase.innerHTML = '<div class="muted" style="grid-column:1/-1;">Badges unavailable offline.</div>';
+    } else {
+      const earned = st.earnedBadgeIds || new Set();
+      badgeCase.innerHTML = ALL_BADGES.map(b => `
+        <div class="badge-tile ${earned.has(b.id) ? 'earned' : 'locked'}" title="${escapeHtml(b.description)}">
+          <div class="badge-icon">${b.icon}</div>
+          <span class="badge-name">${earned.has(b.id) ? escapeHtml(b.name) : '?'}</span>
+        </div>
+      `).join('');
+    }
 
     const hist = document.getElementById('detailHistory');
     if (st.history.length === 0) {
@@ -2865,7 +3073,10 @@
     } else {
       hist.innerHTML = st.history.slice().reverse().map(h => `
         <div class="entry ${h.delta >= 0 ? 'pos' : 'neg'}">
-          <span>${escapeHtml(h.label)}</span>
+          <span>
+            ${escapeHtml(h.label)}<br>
+            <span class="muted" style="font-size:11px;">${new Date(h.ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+          </span>
           <span>${h.delta > 0 ? '+' : ''}${h.delta}</span>
         </div>
       `).join('');
@@ -3006,6 +3217,7 @@
     sb.from('point_history').insert({
       enrollment_id: st.id, label: entry.label, delta: entry.delta, logged_by: currentTeacherId,
     }).then(({ error }) => { if (error) console.error('Point not saved to cloud (kept locally):', error); });
+    checkAndAwardBadges(st);
   });
 
   // ---------- Parent contact save (detail modal) ----------
