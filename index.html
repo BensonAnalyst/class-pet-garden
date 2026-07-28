@@ -2446,7 +2446,7 @@
     try {
       const { data: studentRow, error: studentErr } = await sb
         .from('students')
-        .insert({ name, parent_name: parentName, parent_email: parentEmail, parent_whatsapp: parentWhatsapp })
+        .insert({ name, parent_name: parentName, parent_email: parentEmail, parent_whatsapp: parentWhatsapp, created_by: currentTeacherId })
         .select().single();
       if (studentErr) throw studentErr;
       const { data: enrollRow, error: enrollErr } = await sb
@@ -2743,7 +2743,7 @@
         const species = SPECIES[speciesIdx % SPECIES.length];
         const { data: studentRow, error: studentErr } = await sb
           .from('students')
-          .insert({ name: item.name, parent_name: item.parentName || '', parent_email: item.parentEmail || '', parent_whatsapp: item.parentWhatsapp || '' })
+          .insert({ name: item.name, parent_name: item.parentName || '', parent_email: item.parentEmail || '', parent_whatsapp: item.parentWhatsapp || '', created_by: currentTeacherId })
           .select().single();
         if (studentErr) { console.error('Skipped a row - student insert failed:', item.name, studentErr); continue; }
         const { data: enrollRow, error: enrollErr } = await sb
