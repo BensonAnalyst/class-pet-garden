@@ -501,7 +501,44 @@
       <input type="password" id="loginPassword" placeholder="Your password">
       <p id="loginError" class="muted" style="color:var(--bad); display:none; margin-top:8px;"></p>
       <button class="primary" id="loginBtn" style="margin-top:14px;">Log in</button>
-      <p class="muted" style="margin-top:10px; font-size:12px;">No sign-up screen yet - accounts are created manually in Supabase for now (early pilot stage).</p>
+      <p class="muted" style="margin-top:10px; font-size:12px; text-align:center;">
+        New here? <a href="#" id="goToSignupLink">Create an account</a>
+      </p>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-signup">
+    <div class="card">
+      <h2>🐾 Create your account</h2>
+      <p class="muted">Free to start - 1 class, up to 40 students. You can add paid classes later.</p>
+      <label>Your school / centre / organization name</label>
+      <input type="text" id="signupOrgName" placeholder="e.g. Sunshine Tuition Centre">
+      <label style="margin-top:10px;">Your email</label>
+      <input type="email" id="signupEmail" placeholder="you@example.com">
+      <label style="margin-top:10px;">Password</label>
+      <input type="password" id="signupPassword" placeholder="At least 6 characters">
+      <label style="margin-top:10px;">Confirm password</label>
+      <input type="password" id="signupPasswordConfirm" placeholder="Re-enter your password">
+
+      <details style="margin-top:14px; font-size:13px; color:var(--muted);">
+        <summary style="cursor:pointer; font-weight:600;">What we store, and why (tap to read)</summary>
+        <div style="margin-top:8px; line-height:1.5;">
+          <p>We store your class roster and any parent contact details you choose to add, so the app can work and (if you turn it on) send parent alerts. Only you, your co-teachers, and a linked parent (for their own child only) can ever see this data - enforced at the database level, not just hidden in the app.</p>
+          <p>By creating an account, you confirm you have appropriate authority - from your school, centre, or the parents themselves - to record this information, the same way you would in an attendance register or report card. Data isn't sold or used for advertising.</p>
+          <p>This is an early-stage product (pilot phase) without a formal SLA yet. We'll let you know before any change that affects how your data is stored or used.</p>
+        </div>
+      </details>
+
+      <label class="row" style="align-items:flex-start; gap:8px; margin-top:12px;">
+        <input type="checkbox" id="signupConsentCheck" style="width:auto; margin-top:3px;">
+        <span style="font-weight:400; font-size:13px;">I understand and agree to how my data and my students' data will be stored and used, as described above.</span>
+      </label>
+
+      <p id="signupError" class="muted" style="color:var(--bad); display:none; margin-top:8px;"></p>
+      <button class="primary" id="signupBtn" style="margin-top:14px;" disabled>Create account</button>
+      <p class="muted" style="margin-top:10px; font-size:12px; text-align:center;">
+        Already have an account? <a href="#" id="goToLoginLink">Log in</a>
+      </p>
     </div>
   </div>
 
@@ -911,6 +948,13 @@
     const cls = makeNewClass(classRow.name);
     cls.id = classRow.id; // use the REAL Supabase uuid, not a locally-generated fake id
     cls.classCode = classRow.class_code;
+    // org_id is null for classes not tied to any organization (shouldn't happen via the app's own
+    // flows anymore, but tolerate it defensively); default to generous caps in that edge case rather
+    // than accidentally blocking a legitimate teacher.
+    const org = classRow.organizations;
+    cls.orgPlan = org ? org.plan : 'free';
+    cls.classCap = org ? org.class_cap : 999;
+    cls.studentCap = org ? org.student_cap : 999;
 
     const { data: enrollments, error: enrollErr } = await sb
       .from('enrollments')
@@ -941,7 +985,7 @@
   async function loadAllClassesFromSupabase() {
     const { data: rows, error } = await sb
       .from('class_teachers')
-      .select('role, classes(id, name, mode, class_code)')
+      .select('role, classes(id, name, mode, class_code, org_id, organizations(plan, class_cap, student_cap))')
       .eq('teacher_id', currentTeacherId);
     if (error) { console.error('Failed to load classes', error); return []; }
     const loaded = [];
@@ -970,6 +1014,78 @@
   }
   document.getElementById('loginBtn').addEventListener('click', attemptLogin);
   document.getElementById('loginPassword').addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
+
+  // ---------- Sign-up (self-serve, free tier - creates an org + first class automatically) ----------
+  document.getElementById('goToSignupLink').addEventListener('click', (e) => { e.preventDefault(); showScreen('signup'); });
+  document.getElementById('goToLoginLink').addEventListener('click', (e) => { e.preventDefault(); showScreen('login'); });
+  document.getElementById('signupConsentCheck').addEventListener('change', (e) => {
+    document.getElementById('signupBtn').disabled = !e.target.checked;
+  });
+
+  async function attemptSignUp() {
+    const orgName = document.getElementById('signupOrgName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+    const errEl = document.getElementById('signupError');
+    errEl.style.display = 'none';
+    if (!orgName || !email || !password) { errEl.textContent = 'Please fill in every field.'; errEl.style.display = 'block'; return; }
+    if (password.length < 6) { errEl.textContent = 'Password must be at least 6 characters.'; errEl.style.display = 'block'; return; }
+    if (password !== passwordConfirm) { errEl.textContent = 'Passwords do not match.'; errEl.style.display = 'block'; return; }
+    if (!document.getElementById('signupConsentCheck').checked) { errEl.textContent = 'Please confirm you agree to the data notice above.'; errEl.style.display = 'block'; return; }
+
+    const btn = document.getElementById('signupBtn');
+    btn.disabled = true; btn.textContent = 'Creating account...';
+    try {
+      const { data: signUpData, error: signUpErr } = await sb.auth.signUp({ email, password });
+      if (signUpErr) throw signUpErr;
+
+      if (!signUpData.session) {
+        // Supabase project has email confirmation turned on - can't create the org/class yet
+        // since there's no authenticated session until the user confirms via the emailed link.
+        // The org + first class get created automatically on their first successful login instead
+        // (see checkSessionAndStart / attemptLogin - both check for a teacher with zero classes).
+        showScreen('login');
+        document.getElementById('loginEmail').value = email;
+        alert('Account created! Please check your email to confirm, then log in here.');
+        return;
+      }
+
+      currentTeacherId = signUpData.user.id;
+      await createOrgAndFirstClass(orgName);
+      appState.classes = await loadAllClassesFromSupabase();
+      appState.currentClassId = appState.classes[0] ? appState.classes[0].id : null;
+      boot();
+    } catch (err) {
+      errEl.textContent = err.message;
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false; btn.textContent = 'Create account';
+    }
+  }
+  document.getElementById('signupBtn').addEventListener('click', attemptSignUp);
+
+  // Creates the organization (defaults to the free plan/caps set in Supabase) + one starter class,
+  // for a brand-new self-serve signup. Shared by attemptSignUp and the "confirm your email then log
+  // in" path in checkSessionAndStart, since org creation can only happen once a session actually exists.
+  async function createOrgAndFirstClass(orgName, className) {
+    className = className || 'My Class';
+    const { data: orgRow, error: orgErr } = await sb
+      .from('organizations')
+      .insert({ name: orgName, owner_id: currentTeacherId })
+      .select().single();
+    if (orgErr) throw orgErr;
+    const { data: classRow, error: classErr } = await sb
+      .from('classes')
+      .insert({ name: className, mode: 'primary_school', class_code: randomClassCode(), created_by: currentTeacherId, org_id: orgRow.id })
+      .select().single();
+    if (classErr) throw classErr;
+    const { error: teacherErr } = await sb
+      .from('class_teachers')
+      .insert({ class_id: classRow.id, teacher_id: currentTeacherId, role: 'owner' });
+    if (teacherErr) throw teacherErr;
+    return classRow;
+  }
 
   async function checkSessionAndStart() {
     const { data: { session } } = await sb.auth.getSession();
@@ -1785,20 +1901,14 @@
     const btn = document.getElementById('createClassBtn');
     btn.disabled = true;
     try {
-      const { data: classRow, error: classErr } = await sb
-        .from('classes')
-        .insert({ name, mode: 'primary_school', class_code: randomClassCode(), created_by: currentTeacherId })
-        .select().single();
-      if (classErr) throw classErr;
-      const { error: teacherErr } = await sb
-        .from('class_teachers')
-        .insert({ class_id: classRow.id, teacher_id: currentTeacherId, role: 'owner' });
-      if (teacherErr) throw teacherErr;
-      const newClass = makeNewClass(name);
-      newClass.id = classRow.id;
-      newClass.classCode = classRow.class_code;
-      appState.classes.push(newClass);
-      switchToClass(newClass.id);
+      // This screen only asks for a class name (kept minimal for the manual/fallback path - e.g. a
+      // self-serve signup that required email confirmation, so org creation couldn't happen at signup
+      // time). Reusing the class name as the org name too is a reasonable default here; a teacher can
+      // rename their org later. Paid institutional orgs are still created manually by us in Supabase
+      // ahead of time, so this path is really just for the free/self-serve fallback case.
+      await createOrgAndFirstClass(name, name);
+      appState.classes = await loadAllClassesFromSupabase();
+      appState.currentClassId = appState.classes[0] ? appState.classes[0].id : null;
       boot();
     } catch (err) {
       alert('Could not create the class: ' + err.message);
@@ -2324,6 +2434,10 @@
   document.getElementById('confirmAddStudentBtn').addEventListener('click', async () => {
     const name = document.getElementById('newStudentName').value.trim();
     if (!name) { alert('Please enter a student name.'); return; }
+    if (state.students.length >= (state.studentCap || 999)) {
+      alert(`Your ${state.orgPlan || 'free'} plan is capped at ${state.studentCap} students for this class. Upgrade to add more.`);
+      return;
+    }
     const parentName = document.getElementById('newParentName').value.trim();
     const parentEmail = document.getElementById('newParentEmail').value.trim();
     const parentWhatsapp = document.getElementById('newParentWhatsapp').value.trim();
@@ -2595,22 +2709,22 @@
         if (!name) name = pendingImportFileName.replace(/\.(csv|xlsx|xls)$/i, '').replace(/[_-]+/g, ' ').trim();
         if (!name) name = 'My Class';
         btn.textContent = 'Creating class...';
-        const { data: classRow, error: classErr } = await sb
-          .from('classes')
-          .insert({ name, mode: 'primary_school', class_code: randomClassCode(), created_by: currentTeacherId })
-          .select().single();
-        if (classErr) throw classErr;
-        const { error: teacherErr } = await sb
-          .from('class_teachers')
-          .insert({ class_id: classRow.id, teacher_id: currentTeacherId, role: 'owner' });
-        if (teacherErr) throw teacherErr;
+        const classRow = await createOrgAndFirstClass(name, name); // org name defaults to class name here - fine for this fallback path, renameable later
         targetClass = makeNewClass(name);
         targetClass.id = classRow.id;
         targetClass.classCode = classRow.class_code;
+        targetClass.orgPlan = 'free'; // a freshly self-serve-created org always starts free
+        targetClass.classCap = 1;
+        targetClass.studentCap = 40;
         appState.classes.push(targetClass);
         createdNew = true;
       } else {
         targetClass = state;
+      }
+
+      const cap = targetClass.studentCap || 999;
+      if (targetClass.students.length + pendingImportRows.length > cap) {
+        throw new Error(`Your ${targetClass.orgPlan || 'free'} plan allows up to ${cap} students in this class - this file would bring it to ${targetClass.students.length + pendingImportRows.length}. Remove some rows, or upgrade your plan.`);
       }
 
       let speciesIdx = targetClass.students.length;
